@@ -5,73 +5,58 @@ on:
 
 jobs:
   build:
-    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Locate Android project
+      - name: Show repository
+        run: |
+          echo "=== Repository files ==="
+          find . -maxdepth 5 -type f | sort
+
+      - name: Find Gradle
         shell: bash
         run: |
-          echo "=== Repository ==="
-          pwd
-          find . -maxdepth 4 -type f | sort
+          GRADLEW=$(find . -type f -name gradlew -print -quit)
 
-          echo ""
-          echo "=== Looking for Gradle wrapper ==="
-
-          WRAPPER=$(find . -type f -name gradlew -print -quit)
-
-          if [ -z "$WRAPPER" ]; then
-            echo "ERROR: No gradlew file exists in this repository."
-            echo ""
-            echo "Looking for Gradle build files:"
-            find . -type f \( \
-              -name "settings.gradle" \
-              -o -name "settings.gradle.kts" \
-              -o -name "build.gradle" \
-              -o -name "build.gradle.kts" \
-            \) -print
-
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew was not found."
+            echo "The Android/Gradle project is missing from the repository."
             exit 1
           fi
 
-          PROJECT=$(dirname "$WRAPPER")
+          echo "Found: $GRADLEW"
 
-          echo "Gradle wrapper found:"
-          echo "$WRAPPER"
-          echo ""
-          echo "Android project directory:"
-          echo "$PROJECT"
+          PROJECT_DIR=$(dirname "$GRADLEW")
 
-          echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Build APK
+      - name: Make Gradle executable
+        run: |
+          chmod +x "$PROJECT_DIR/gradlew"
+
+      - name: Build Debug APK
         shell: bash
         run: |
-          chmod +x "$PROJECT/gradlew"
+          cd "$PROJECT_DIR"
+          ./gradlew assembleDebug --stacktrace
 
-          cd "$PROJECT"
-
-          ./gradlew clean assembleDebug --stacktrace
-
-      - name: Locate APK
+      - name: Find APK
         shell: bash
         run: |
-          echo "=== APK FILES ==="
-
+          echo "=== APK files ==="
           find . -type f -name "*.apk" -print
 
           if ! find . -type f -name "*.apk" | grep -q .; then
-            echo "ERROR: Gradle finished but no APK was created."
+            echo "ERROR: No APK was created."
             exit 1
           fi
 
@@ -81,4 +66,3 @@ jobs:
           name: Recorder-APK
           path: '**/build/outputs/apk/**/*.apk'
           if-no-files-found: error
-          retention-days: 14
