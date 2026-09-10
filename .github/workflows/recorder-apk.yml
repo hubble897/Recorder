@@ -1,0 +1,84 @@
+name: Recorder APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Locate Android project
+        shell: bash
+        run: |
+          echo "=== Repository ==="
+          pwd
+          find . -maxdepth 4 -type f | sort
+
+          echo ""
+          echo "=== Looking for Gradle wrapper ==="
+
+          WRAPPER=$(find . -type f -name gradlew -print -quit)
+
+          if [ -z "$WRAPPER" ]; then
+            echo "ERROR: No gradlew file exists in this repository."
+            echo ""
+            echo "Looking for Gradle build files:"
+            find . -type f \( \
+              -name "settings.gradle" \
+              -o -name "settings.gradle.kts" \
+              -o -name "build.gradle" \
+              -o -name "build.gradle.kts" \
+            \) -print
+
+            exit 1
+          fi
+
+          PROJECT=$(dirname "$WRAPPER")
+
+          echo "Gradle wrapper found:"
+          echo "$WRAPPER"
+          echo ""
+          echo "Android project directory:"
+          echo "$PROJECT"
+
+          echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        shell: bash
+        run: |
+          chmod +x "$PROJECT/gradlew"
+
+          cd "$PROJECT"
+
+          ./gradlew clean assembleDebug --stacktrace
+
+      - name: Locate APK
+        shell: bash
+        run: |
+          echo "=== APK FILES ==="
+
+          find . -type f -name "*.apk" -print
+
+          if ! find . -type f -name "*.apk" | grep -q .; then
+            echo "ERROR: Gradle finished but no APK was created."
+            exit 1
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Recorder-APK
+          path: '**/build/outputs/apk/**/*.apk'
+          if-no-files-found: error
+          retention-days: 14
