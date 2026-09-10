@@ -25,7 +25,7 @@ jobs:
 
 
       # --------------------------------------------------
-      # JAVA
+      # JAVA 17
       # --------------------------------------------------
 
       - name: Set up Java 17
@@ -53,15 +53,27 @@ jobs:
 
 
       # --------------------------------------------------
-      # CREATE PROJECT
+      # INSTALL CORRECT GRADLE
       # --------------------------------------------------
 
-      - name: Create Android project
-        shell: bash
+      - name: Install Gradle 8.11.1
         run: |
+          wget -q \
+            https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
 
-          set -e
+          unzip -q gradle-8.11.1-bin.zip
 
+          echo "$PWD/gradle-8.11.1/bin" >> "$GITHUB_PATH"
+
+          gradle --version
+
+
+      # --------------------------------------------------
+      # CREATE DIRECTORIES
+      # --------------------------------------------------
+
+      - name: Create project directories
+        run: |
           mkdir -p app/src/main/java/com/gesture/replayer
           mkdir -p app/src/main/res/values
 
@@ -102,7 +114,7 @@ jobs:
       # ROOT BUILD
       # --------------------------------------------------
 
-      - name: Create root build.gradle
+      - name: Create build.gradle
         run: |
           cat > build.gradle <<'EOF'
           plugins {
@@ -136,13 +148,11 @@ jobs:
           }
 
           android {
-
               namespace 'com.gesture.replayer'
 
               compileSdk 36
 
               defaultConfig {
-
                   applicationId 'com.gesture.replayer.android16'
 
                   minSdk 26
@@ -155,7 +165,6 @@ jobs:
               }
 
               buildTypes {
-
                   debug {
                       minifyEnabled false
                       debuggable true
@@ -168,9 +177,7 @@ jobs:
               }
 
               compileOptions {
-
                   sourceCompatibility JavaVersion.VERSION_17
-
                   targetCompatibility JavaVersion.VERSION_17
               }
           }
@@ -211,13 +218,7 @@ jobs:
                   name="AppTheme"
                   parent="android:style/Theme.Material.Light.NoActionBar">
 
-                  <item name="android:fontFamily">
-                      sans
-                  </item>
-
-                  <item name="android:windowActionModeOverlay">
-                      true
-                  </item>
+                  <item name="android:fontFamily">sans</item>
 
               </style>
 
@@ -238,19 +239,13 @@ jobs:
               xmlns:android="http://schemas.android.com/apk/res/android">
 
               <application
-
                   android:allowBackup="true"
-
                   android:label="@string/app_name"
-
                   android:supportsRtl="true"
-
                   android:theme="@style/AppTheme">
 
                   <activity
-
                       android:name=".MainActivity"
-
                       android:exported="true">
 
                       <intent-filter>
@@ -369,55 +364,29 @@ jobs:
 
 
       # --------------------------------------------------
-      # GRADLE
-      # --------------------------------------------------
-
-      - name: Install Gradle
-        run: |
-          sudo apt-get update
-
-          sudo apt-get install -y gradle
-
-
-      # --------------------------------------------------
-      # CREATE WRAPPER
-      # --------------------------------------------------
-
-      - name: Create Gradle wrapper
-        run: |
-          gradle wrapper \
-            --gradle-version 8.11.1
-
-
-      # --------------------------------------------------
       # BUILD
       # --------------------------------------------------
 
       - name: Build APK
         run: |
-          chmod +x ./gradlew
-
-          ./gradlew \
-            clean \
-            assembleDebug \
-            --stacktrace
+          gradle clean assembleDebug --stacktrace
 
 
       # --------------------------------------------------
-      # CHECK APK EXISTS
+      # VERIFY APK EXISTS
       # --------------------------------------------------
 
-      - name: Check APK
+      - name: Verify APK exists
         run: |
 
           APK="app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
-              echo "ERROR: APK was not created."
-              exit 1
+            echo "APK was not created."
+            exit 1
           fi
 
-          echo "APK successfully created."
+          echo "APK created successfully."
 
           ls -lh "$APK"
 
@@ -426,27 +395,27 @@ jobs:
       # VERIFY APK SIGNATURE
       # --------------------------------------------------
 
-      - name: Verify APK
+      - name: Verify APK signature
         run: |
 
           APK="app/build/outputs/apk/debug/app-debug.apk"
 
-          $ANDROID_HOME/build-tools/36.0.0/apksigner \
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" \
             verify \
             --verbose \
             "$APK"
 
 
       # --------------------------------------------------
-      # VERIFY PACKAGE
+      # VERIFY APK PACKAGE
       # --------------------------------------------------
 
-      - name: Verify Android package
+      - name: Inspect APK
         run: |
 
           APK="app/build/outputs/apk/debug/app-debug.apk"
 
-          $ANDROID_HOME/build-tools/36.0.0/aapt2 \
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" \
             dump badging \
             "$APK"
 
@@ -459,7 +428,6 @@ jobs:
         uses: actions/upload-artifact@v4
 
         with:
-
           name: Gesture-Recorder-Android-16-APK
 
           path: app/build/outputs/apk/debug/app-debug.apk
