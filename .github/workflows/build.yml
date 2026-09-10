@@ -1,4 +1,4 @@
-name: Build Gesture Recorder
+name: Build Gesture Recorder - Android 16
 
 on:
   workflow_dispatch:
@@ -11,12 +11,22 @@ permissions:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build Verified APK
     runs-on: ubuntu-latest
 
     steps:
+
+      # --------------------------------------------------
+      # CHECKOUT
+      # --------------------------------------------------
+
       - name: Checkout
         uses: actions/checkout@v4
+
+
+      # --------------------------------------------------
+      # JAVA
+      # --------------------------------------------------
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -24,23 +34,44 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+
+      # --------------------------------------------------
+      # ANDROID SDK
+      # --------------------------------------------------
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK
+      - name: Install Android 16 SDK
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Create project
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
+
+
+      # --------------------------------------------------
+      # CREATE PROJECT
+      # --------------------------------------------------
+
+      - name: Create Android project
         shell: bash
         run: |
+
           set -e
 
-          mkdir -p app/src/main/java/com/gesture/recorder
+          mkdir -p app/src/main/java/com/gesture/replayer
           mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/res/xml
 
+
+      # --------------------------------------------------
+      # SETTINGS
+      # --------------------------------------------------
+
+      - name: Create settings.gradle
+        run: |
           cat > settings.gradle <<'EOF'
           pluginManagement {
               repositories {
@@ -51,7 +82,10 @@ jobs:
           }
 
           dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositoriesMode.set(
+                  RepositoriesMode.FAIL_ON_PROJECT_REPOS
+              )
+
               repositories {
                   google()
                   mavenCentral()
@@ -59,593 +93,375 @@ jobs:
           }
 
           rootProject.name = "GestureRecorder"
+
           include(":app")
           EOF
 
+
+      # --------------------------------------------------
+      # ROOT BUILD
+      # --------------------------------------------------
+
+      - name: Create root build.gradle
+        run: |
           cat > build.gradle <<'EOF'
           plugins {
-              id 'com.android.application' version '8.7.3' apply false
-              id 'org.jetbrains.kotlin.android' version '2.0.21' apply false
+              id 'com.android.application' version '8.9.2' apply false
           }
           EOF
 
+
+      # --------------------------------------------------
+      # GRADLE PROPERTIES
+      # --------------------------------------------------
+
+      - name: Create gradle.properties
+        run: |
           cat > gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
           android.nonTransitiveRClass=true
           EOF
 
+
+      # --------------------------------------------------
+      # APP BUILD
+      # --------------------------------------------------
+
+      - name: Create app build.gradle
+        run: |
           cat > app/build.gradle <<'EOF'
           plugins {
               id 'com.android.application'
-              id 'org.jetbrains.kotlin.android'
           }
 
           android {
-              namespace 'com.gesture.recorder'
-              compileSdk 35
+
+              namespace 'com.gesture.replayer'
+
+              compileSdk 36
 
               defaultConfig {
-                  applicationId 'com.gesture.recorder'
+
+                  applicationId 'com.gesture.replayer.android16'
+
                   minSdk 26
-                  targetSdk 35
+
+                  targetSdk 36
+
                   versionCode 1
+
                   versionName '1.0'
               }
 
               buildTypes {
+
                   debug {
                       minifyEnabled false
+                      debuggable true
                   }
 
                   release {
                       minifyEnabled false
+                      debuggable false
                   }
               }
 
               compileOptions {
+
                   sourceCompatibility JavaVersion.VERSION_17
+
                   targetCompatibility JavaVersion.VERSION_17
               }
-
-              kotlinOptions {
-                  jvmTarget = '17'
-              }
-          }
-
-          dependencies {
-              implementation 'androidx.core:core-ktx:1.15.0'
-              implementation 'androidx.appcompat:appcompat:1.7.0'
-              implementation 'com.google.android.material:material:1.12.0'
           }
           EOF
 
+
+      # --------------------------------------------------
+      # STRINGS
+      # --------------------------------------------------
+
+      - name: Create strings.xml
+        run: |
           cat > app/src/main/res/values/strings.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
+
           <resources>
-              <string name="app_name">Gesture Recorder</string>
-              <string name="accessibility_description">Allows the user to replay recorded gestures.</string>
+
+              <string name="app_name">
+                  Gesture Recorder
+              </string>
+
           </resources>
           EOF
 
+
+      # --------------------------------------------------
+      # THEME
+      # --------------------------------------------------
+
+      - name: Create themes.xml
+        run: |
           cat > app/src/main/res/values/themes.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
+
           <resources>
-              <style name="AppTheme"
-                  parent="Theme.Material3.DayNight.NoActionBar">
-                  <item name="android:fontFamily">sans</item>
-                  <item name="android:windowActionModeOverlay">true</item>
+
+              <style
+                  name="AppTheme"
+                  parent="android:style/Theme.Material.Light.NoActionBar">
+
+                  <item name="android:fontFamily">
+                      sans
+                  </item>
+
+                  <item name="android:windowActionModeOverlay">
+                      true
+                  </item>
+
               </style>
+
           </resources>
           EOF
 
-          cat > app/src/main/res/xml/accessibility_service_config.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <accessibility-service
-              xmlns:android="http://schemas.android.com/apk/res/android"
-              android:description="@string/accessibility_description"
-              android:accessibilityEventTypes="typeAllMask"
-              android:accessibilityFeedbackType="feedbackGeneric"
-              android:notificationTimeout="50"
-              android:canPerformGestures="true"
-              android:canRetrieveWindowContent="false" />
-          EOF
 
+      # --------------------------------------------------
+      # MANIFEST
+      # --------------------------------------------------
+
+      - name: Create AndroidManifest.xml
+        run: |
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+          <manifest
+              xmlns:android="http://schemas.android.com/apk/res/android">
 
               <application
+
                   android:allowBackup="true"
+
                   android:label="@string/app_name"
+
                   android:supportsRtl="true"
+
                   android:theme="@style/AppTheme">
 
                   <activity
+
                       android:name=".MainActivity"
+
                       android:exported="true">
 
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
+
+                          <action
+                              android:name="android.intent.action.MAIN" />
+
+                          <category
+                              android:name="android.intent.category.LAUNCHER" />
+
                       </intent-filter>
 
                   </activity>
-
-                  <service
-                      android:name=".GestureAccessibilityService"
-                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-                      android:exported="false">
-
-                      <intent-filter>
-                          <action android:name="android.accessibilityservice.AccessibilityService" />
-                      </intent-filter>
-
-                      <meta-data
-                          android:name="android.accessibilityservice"
-                          android:resource="@xml/accessibility_service_config" />
-
-                  </service>
 
               </application>
 
           </manifest>
           EOF
 
-          cat > app/src/main/java/com/gesture/recorder/GestureEvent.kt <<'EOF'
-          package com.gesture.recorder
 
-          data class GestureEvent(
-              val type: String,
-              val x: Float,
-              val y: Float,
-              val time: Long,
-              val duration: Long = 0L,
-              val endX: Float = x,
-              val endY: Float = y
-          )
-          EOF
+      # --------------------------------------------------
+      # MAIN ACTIVITY
+      # --------------------------------------------------
 
-          cat > app/src/main/java/com/gesture/recorder/RecordingStore.kt <<'EOF'
-          package com.gesture.recorder
+      - name: Create MainActivity.java
+        run: |
+          cat > app/src/main/java/com/gesture/replayer/MainActivity.java <<'EOF'
+          package com.gesture.replayer;
 
-          import android.content.Context
-          import org.json.JSONArray
-          import org.json.JSONObject
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.view.Gravity;
+          import android.widget.Button;
+          import android.widget.LinearLayout;
+          import android.widget.TextView;
 
-          object RecordingStore {
+          public class MainActivity extends Activity {
 
-              private const val PREFS = "gesture_recordings"
-              private const val KEY = "last_recording"
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
 
-              fun save(context: Context, events: List<GestureEvent>) {
-                  val array = JSONArray()
+                  super.onCreate(savedInstanceState);
 
-                  events.forEach {
-                      array.put(
-                          JSONObject()
-                              .put("type", it.type)
-                              .put("x", it.x)
-                              .put("y", it.y)
-                              .put("time", it.time)
-                              .put("duration", it.duration)
-                              .put("endX", it.endX)
-                              .put("endY", it.endY)
+                  LinearLayout layout =
+                      new LinearLayout(this);
+
+                  layout.setOrientation(
+                      LinearLayout.VERTICAL
+                  );
+
+                  layout.setGravity(
+                      Gravity.CENTER
+                  );
+
+                  layout.setPadding(
+                      40,
+                      40,
+                      40,
+                      40
+                  );
+
+                  TextView title =
+                      new TextView(this);
+
+                  title.setText(
+                      "Gesture Recorder"
+                  );
+
+                  title.setTextSize(28);
+
+                  title.setTextColor(
+                      Color.BLACK
+                  );
+
+                  title.setGravity(
+                      Gravity.CENTER
+                  );
+
+                  TextView status =
+                      new TextView(this);
+
+                  status.setText(
+                      "Android 16 test build"
+                  );
+
+                  status.setTextSize(18);
+
+                  status.setGravity(
+                      Gravity.CENTER
+                  );
+
+                  Button test =
+                      new Button(this);
+
+                  test.setText(
+                      "TEST APP"
+                  );
+
+                  test.setOnClickListener(
+                      v -> status.setText(
+                          "App is working!"
                       )
-                  }
+                  );
 
-                  context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                      .edit()
-                      .putString(KEY, array.toString())
-                      .apply()
-              }
+                  layout.addView(title);
 
-              fun load(context: Context): List<GestureEvent> {
-                  val result = mutableListOf<GestureEvent>()
+                  layout.addView(status);
 
-                  val text = context
-                      .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                      .getString(KEY, null)
-                      ?: return result
+                  layout.addView(test);
 
-                  val array = JSONArray(text)
-
-                  for (i in 0 until array.length()) {
-                      val item = array.getJSONObject(i)
-
-                      result.add(
-                          GestureEvent(
-                              type = item.getString("type"),
-                              x = item.getDouble("x").toFloat(),
-                              y = item.getDouble("y").toFloat(),
-                              time = item.getLong("time"),
-                              duration = item.optLong("duration", 0L),
-                              endX = item.optDouble("endX", item.getDouble("x")).toFloat(),
-                              endY = item.optDouble("endY", item.getDouble("y")).toFloat()
-                          )
-                      )
-                  }
-
-                  return result
+                  setContentView(layout);
               }
           }
           EOF
 
-          cat > app/src/main/java/com/gesture/recorder/GestureAccessibilityService.kt <<'EOF'
-          package com.gesture.recorder
 
-          import android.accessibilityservice.AccessibilityService
-          import android.accessibilityservice.GestureDescription
-          import android.graphics.Path
-          import android.os.Handler
-          import android.os.Looper
-          import android.view.accessibility.AccessibilityEvent
+      # --------------------------------------------------
+      # GRADLE
+      # --------------------------------------------------
 
-          class GestureAccessibilityService : AccessibilityService() {
+      - name: Install Gradle
+        run: |
+          sudo apt-get update
 
-              private val handler = Handler(Looper.getMainLooper())
+          sudo apt-get install -y gradle
 
-              @Volatile
-              private var replaying = false
 
-              override fun onServiceConnected() {
-                  super.onServiceConnected()
-                  instance = this
-              }
-
-              override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-              }
-
-              override fun onInterrupt() {
-                  stopReplay()
-              }
-
-              fun replay(events: List<GestureEvent>) {
-                  if (events.isEmpty()) return
-
-                  stopReplay()
-                  replaying = true
-
-                  var previousTime = 0L
-
-                  for (event in events) {
-
-                      val delay = (event.time - previousTime).coerceAtLeast(0L)
-
-                      handler.postDelayed({
-
-                          if (!replaying) return@postDelayed
-
-                          when (event.type) {
-
-                              "tap" -> {
-                                  val path = Path()
-                                  path.moveTo(event.x, event.y)
-
-                                  val gesture =
-                                      GestureDescription.Builder()
-                                          .addStroke(
-                                              GestureDescription.StrokeDescription(
-                                                  path,
-                                                  0,
-                                                  80
-                                              )
-                                          )
-                                          .build()
-
-                                  dispatchGesture(
-                                      gesture,
-                                      null,
-                                      null
-                                  )
-                              }
-
-                              "swipe" -> {
-                                  val path = Path()
-                                  path.moveTo(event.x, event.y)
-                                  path.lineTo(event.endX, event.endY)
-
-                                  val gesture =
-                                      GestureDescription.Builder()
-                                          .addStroke(
-                                              GestureDescription.StrokeDescription(
-                                                  path,
-                                                  0,
-                                                  event.duration.coerceAtLeast(50L)
-                                              )
-                                          )
-                                          .build()
-
-                                  dispatchGesture(
-                                      gesture,
-                                      null,
-                                      null
-                                  )
-                              }
-                          }
-
-                      }, event.time)
-
-                      previousTime = event.time
-                  }
-
-                  val endTime =
-                      events.maxOfOrNull { it.time + it.duration + 200L }
-                          ?: 500L
-
-                  handler.postDelayed({
-                      replaying = false
-                  }, endTime)
-              }
-
-              fun stopReplay() {
-                  replaying = false
-                  handler.removeCallbacksAndMessages(null)
-              }
-
-              companion object {
-                  private var instance: GestureAccessibilityService? = null
-
-                  fun replayLast(context: android.content.Context) {
-                      val service = instance ?: return
-                      service.replay(RecordingStore.load(context))
-                  }
-
-                  fun stop() {
-                      instance?.stopReplay()
-                  }
-              }
-          }
-          EOF
-
-          cat > app/src/main/java/com/gesture/recorder/MainActivity.kt <<'EOF'
-          package com.gesture.recorder
-
-          import android.app.Activity
-          import android.content.Intent
-          import android.graphics.Color
-          import android.os.Bundle
-          import android.provider.Settings
-          import android.view.Gravity
-          import android.view.MotionEvent
-          import android.widget.Button
-          import android.widget.LinearLayout
-          import android.widget.TextView
-          import java.util.concurrent.CopyOnWriteArrayList
-
-          class MainActivity : Activity() {
-
-              private val events = CopyOnWriteArrayList<GestureEvent>()
-
-              private var recording = false
-              private var recordingStart = 0L
-
-              private var downX = 0f
-              private var downY = 0f
-              private var downTime = 0L
-
-              private lateinit var status: TextView
-              private lateinit var timer: TextView
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-
-                  buildInterface()
-              }
-
-              private fun buildInterface() {
-
-                  val root = LinearLayout(this)
-                  root.orientation = LinearLayout.VERTICAL
-                  root.gravity = Gravity.CENTER_HORIZONTAL
-                  root.setPadding(32, 40, 32, 32)
-
-                  val title = TextView(this)
-                  title.text = "Gesture Recorder"
-                  title.textSize = 28f
-
-                  status = TextView(this)
-                  status.text = "Ready"
-                  status.textSize = 18f
-                  status.setPadding(0, 24, 0, 8)
-
-                  timer = TextView(this)
-                  timer.text = "00:00:00"
-                  timer.textSize = 24f
-
-                  val accessibility = Button(this)
-                  accessibility.text = "Enable Accessibility Service"
-
-                  val record = Button(this)
-                  record.text = "START RECORDING"
-
-                  val stop = Button(this)
-                  stop.text = "STOP RECORDING"
-
-                  val replay = Button(this)
-                  replay.text = "REPLAY LAST RECORDING"
-
-                  val stopReplay = Button(this)
-                  stopReplay.text = "STOP REPLAY"
-
-                  root.addView(title)
-                  root.addView(status)
-                  root.addView(timer)
-                  root.addView(accessibility)
-                  root.addView(record)
-                  root.addView(stop)
-                  root.addView(replay)
-                  root.addView(stopReplay)
-
-                  setContentView(root)
-
-                  accessibility.setOnClickListener {
-                      startActivity(
-                          Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                      )
-                  }
-
-                  record.setOnClickListener {
-                      startRecording()
-                  }
-
-                  stop.setOnClickListener {
-                      stopRecording()
-                  }
-
-                  replay.setOnClickListener {
-                      GestureAccessibilityService.replayLast(this)
-                      status.text = "Replaying"
-                  }
-
-                  stopReplay.setOnClickListener {
-                      GestureAccessibilityService.stop()
-                      status.text = "Replay stopped"
-                  }
-              }
-
-              private fun startRecording() {
-                  events.clear()
-                  recording = true
-                  recordingStart = System.currentTimeMillis()
-                  status.text = "Recording..."
-                  startTimer()
-              }
-
-              private fun stopRecording() {
-                  if (!recording) return
-
-                  recording = false
-
-                  RecordingStore.save(
-                      this,
-                      events.toList()
-                  )
-
-                  status.text =
-                      "Saved ${events.size} gestures"
-              }
-
-              private fun startTimer() {
-
-                  timer.post(object : Runnable {
-
-                      override fun run() {
-
-                          if (!recording) return
-
-                          val elapsed =
-                              System.currentTimeMillis() - recordingStart
-
-                          if (elapsed >= 60 * 60 * 1000L) {
-                              stopRecording()
-                              return
-                          }
-
-                          val seconds =
-                              elapsed / 1000
-
-                          val h = seconds / 3600
-                          val m = (seconds % 3600) / 60
-                          val s = seconds % 60
-
-                          timer.text =
-                              String.format(
-                                  "%02d:%02d:%02d",
-                                  h,
-                                  m,
-                                  s
-                              )
-
-                          timer.postDelayed(this, 500)
-                      }
-
-                  })
-              }
-
-              override fun dispatchTouchEvent(
-                  event: MotionEvent
-              ): Boolean {
-
-                  if (recording) {
-
-                      when (event.actionMasked) {
-
-                          MotionEvent.ACTION_DOWN -> {
-                              downX = event.rawX
-                              downY = event.rawY
-                              downTime = System.currentTimeMillis()
-                          }
-
-                          MotionEvent.ACTION_UP -> {
-
-                              val upX = event.rawX
-                              val upY = event.rawY
-                              val now =
-                                  System.currentTimeMillis()
-
-                              val elapsed =
-                                  now - recordingStart
-
-                              val distance =
-                                  kotlin.math.hypot(
-                                      (upX - downX).toDouble(),
-                                      (upY - downY).toDouble()
-                                  )
-
-                              if (distance < 30) {
-
-                                  events.add(
-                                      GestureEvent(
-                                          type = "tap",
-                                          x = downX,
-                                          y = downY,
-                                          time = elapsed
-                                      )
-                                  )
-
-                              } else {
-
-                                  events.add(
-                                      GestureEvent(
-                                          type = "swipe",
-                                          x = downX,
-                                          y = downY,
-                                          time = elapsed,
-                                          duration =
-                                              (now - downTime)
-                                                  .coerceAtLeast(50L),
-                                          endX = upX,
-                                          endY = upY
-                                      )
-                                  )
-                              }
-                          }
-                      }
-                  }
-
-                  return super.dispatchTouchEvent(event)
-              }
-          }
-          EOF
+      # --------------------------------------------------
+      # CREATE WRAPPER
+      # --------------------------------------------------
 
       - name: Create Gradle wrapper
         run: |
-          gradle wrapper --gradle-version 8.10.2
+          gradle wrapper \
+            --gradle-version 8.11.1
+
+
+      # --------------------------------------------------
+      # BUILD
+      # --------------------------------------------------
 
       - name: Build APK
         run: |
-          chmod +x gradlew
-          ./gradlew clean assembleDebug --stacktrace
+          chmod +x ./gradlew
+
+          ./gradlew \
+            clean \
+            assembleDebug \
+            --stacktrace
+
+
+      # --------------------------------------------------
+      # CHECK APK EXISTS
+      # --------------------------------------------------
+
+      - name: Check APK
+        run: |
+
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+              echo "ERROR: APK was not created."
+              exit 1
+          fi
+
+          echo "APK successfully created."
+
+          ls -lh "$APK"
+
+
+      # --------------------------------------------------
+      # VERIFY APK SIGNATURE
+      # --------------------------------------------------
 
       - name: Verify APK
         run: |
-          test -f app/build/outputs/apk/debug/app-debug.apk
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload installable APK
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+
+          $ANDROID_HOME/build-tools/36.0.0/apksigner \
+            verify \
+            --verbose \
+            "$APK"
+
+
+      # --------------------------------------------------
+      # VERIFY PACKAGE
+      # --------------------------------------------------
+
+      - name: Verify Android package
+        run: |
+
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+
+          $ANDROID_HOME/build-tools/36.0.0/aapt2 \
+            dump badging \
+            "$APK"
+
+
+      # --------------------------------------------------
+      # UPLOAD APK
+      # --------------------------------------------------
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
+
         with:
-          name: Gesture-Recorder-APK
+
+          name: Gesture-Recorder-Android-16-APK
+
           path: app/build/outputs/apk/debug/app-debug.apk
+
           if-no-files-found: error
