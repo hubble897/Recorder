@@ -7,39 +7,64 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+
+      # --------------------------------------------------
+      # 1. CHECKOUT
+      # --------------------------------------------------
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
+      # --------------------------------------------------
+      # 2. JAVA 17
+      # --------------------------------------------------
+
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
+
+
+      # --------------------------------------------------
+      # 3. ANDROID SDK
+      # --------------------------------------------------
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK
+      - name: Install Android SDK 35
         run: |
           yes | sdkmanager --licenses || true
+
           sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-      - name: Create project folders
+
+      # --------------------------------------------------
+      # 4. CREATE PROJECT DIRECTORIES
+      # --------------------------------------------------
+
+      - name: Create project directories
         run: |
           mkdir -p app/src/main/java/com/example/gesturerecorder
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/xml
+
+
+      # --------------------------------------------------
+      # 5. SETTINGS
+      # --------------------------------------------------
 
       - name: Create settings.gradle.kts
         run: |
@@ -53,7 +78,10 @@ jobs:
           }
 
           dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositoriesMode.set(
+                  RepositoriesMode.FAIL_ON_PROJECT_REPOS
+              )
+
               repositories {
                   google()
                   mavenCentral()
@@ -61,8 +89,14 @@ jobs:
           }
 
           rootProject.name = "GestureRecorderOverlay"
+
           include(":app")
           EOF
+
+
+      # --------------------------------------------------
+      # 6. ROOT GRADLE
+      # --------------------------------------------------
 
       - name: Create root build.gradle.kts
         run: |
@@ -73,6 +107,11 @@ jobs:
           }
           EOF
 
+
+      # --------------------------------------------------
+      # 7. GRADLE PROPERTIES
+      # --------------------------------------------------
+
       - name: Create gradle.properties
         run: |
           cat > gradle.properties <<'EOF'
@@ -80,6 +119,11 @@ jobs:
           android.useAndroidX=true
           android.nonTransitiveRClass=true
           EOF
+
+
+      # --------------------------------------------------
+      # 8. APP GRADLE
+      # --------------------------------------------------
 
       - name: Create app build.gradle.kts
         run: |
@@ -91,29 +135,47 @@ jobs:
 
           android {
               namespace = "com.example.gesturerecorder"
+
               compileSdk = 35
 
               defaultConfig {
                   applicationId = "com.example.gesturerecorder"
+
                   minSdk = 26
+
                   targetSdk = 35
+
                   versionCode = 2
+
                   versionName = "2.0"
               }
           }
 
           dependencies {
-              implementation("androidx.core:core-ktx:1.15.0")
-              implementation("androidx.appcompat:appcompat:1.7.0")
+
+              implementation(
+                  "androidx.core:core-ktx:1.15.0"
+              )
+
+              implementation(
+                  "androidx.appcompat:appcompat:1.7.0"
+              )
           }
           EOF
+
+
+      # --------------------------------------------------
+      # 9. MANIFEST
+      # --------------------------------------------------
 
       - name: Create AndroidManifest.xml
         run: |
           cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+          <manifest
+              xmlns:android="http://schemas.android.com/apk/res/android">
 
-              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+              <uses-permission
+                  android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
               <application
                   android:allowBackup="true"
@@ -126,11 +188,17 @@ jobs:
                       android:screenOrientation="portrait">
 
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
+
+                          <action
+                              android:name="android.intent.action.MAIN"/>
+
+                          <category
+                              android:name="android.intent.category.LAUNCHER"/>
+
                       </intent-filter>
 
                   </activity>
+
 
                   <service
                       android:name=".GestureAccessibilityService"
@@ -139,7 +207,10 @@ jobs:
                       android:label="Gesture Replay Service">
 
                       <intent-filter>
-                          <action android:name="android.accessibilityservice.AccessibilityService"/>
+
+                          <action
+                              android:name="android.accessibilityservice.AccessibilityService"/>
+
                       </intent-filter>
 
                       <meta-data
@@ -147,6 +218,7 @@ jobs:
                           android:resource="@xml/accessibility_service_config"/>
 
                   </service>
+
 
                   <service
                       android:name=".OverlayService"
@@ -157,45 +229,85 @@ jobs:
           </manifest>
           EOF
 
+
+      # --------------------------------------------------
+      # 10. STRINGS
+      # --------------------------------------------------
+
       - name: Create strings.xml
         run: |
           cat > app/src/main/res/values/strings.xml <<'EOF'
           <resources>
-              <string name="app_name">Gesture Recorder</string>
+
+              <string name="app_name">
+                  Gesture Recorder
+              </string>
+
               <string name="accessibility_description">
                   Replays saved touch gestures using Android accessibility gestures.
               </string>
+
           </resources>
           EOF
+
+
+      # --------------------------------------------------
+      # 11. STYLES
+      # --------------------------------------------------
 
       - name: Create styles.xml
         run: |
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
 
-              <style name="AppTheme"
+              <style
+                  name="AppTheme"
                   parent="android:style/Theme.Material.Light.NoActionBar">
 
-                  <item name="android:fontFamily">sans</item>
-                  <item name="android:colorAccent">#1565C0</item>
+                  <item name="android:fontFamily">
+                      sans
+                  </item>
+
+                  <item name="android:colorAccent">
+                      #1565C0
+                  </item>
 
               </style>
 
           </resources>
           EOF
 
+
+      # --------------------------------------------------
+      # 12. ACCESSIBILITY CONFIG
+      # --------------------------------------------------
+
       - name: Create accessibility configuration
         run: |
           cat > app/src/main/res/xml/accessibility_service_config.xml <<'EOF'
           <accessibility-service
               xmlns:android="http://schemas.android.com/apk/res/android"
+
               android:description="@string/accessibility_description"
+
               android:accessibilityEventTypes="typeAllMask"
+
               android:accessibilityFeedbackType="feedbackGeneric"
+
+              android:accessibilityFlags="flagDefault"
+
               android:canRetrieveWindowContent="false"
+
               android:canPerformGestures="true"
+
               android:notificationTimeout="50"/>
+
           EOF
+
+
+      # --------------------------------------------------
+      # 13. GESTURE POINT
+      # --------------------------------------------------
 
       - name: Create GesturePoint.kt
         run: |
@@ -209,6 +321,11 @@ jobs:
           )
           EOF
 
+
+      # --------------------------------------------------
+      # 14. GESTURE STORAGE
+      # --------------------------------------------------
+
       - name: Create GestureStore.kt
         run: |
           cat > app/src/main/java/com/example/gesturerecorder/GestureStore.kt <<'EOF'
@@ -220,31 +337,57 @@ jobs:
 
           object GestureStore {
 
-              private const val PREFS = "gesture_store"
-              private const val KEY = "points"
+              private const val PREFS =
+                  "gesture_store"
+
+              private const val KEY =
+                  "points"
+
 
               fun save(
                   context: Context,
                   points: List<GesturePoint>
               ) {
-                  val array = JSONArray()
 
-                  points.forEach {
+                  val array =
+                      JSONArray()
+
+                  points.forEach { point ->
+
                       array.put(
                           JSONObject().apply {
-                              put("x", it.x)
-                              put("y", it.y)
-                              put("t", it.timeMs)
+
+                              put(
+                                  "x",
+                                  point.x
+                              )
+
+                              put(
+                                  "y",
+                                  point.y
+                              )
+
+                              put(
+                                  "t",
+                                  point.timeMs
+                              )
                           }
                       )
                   }
 
                   context
-                      .getSharedPreferences(PREFS, 0)
+                      .getSharedPreferences(
+                          PREFS,
+                          Context.MODE_PRIVATE
+                      )
                       .edit()
-                      .putString(KEY, array.toString())
+                      .putString(
+                          KEY,
+                          array.toString()
+                      )
                       .apply()
               }
+
 
               fun load(
                   context: Context
@@ -252,23 +395,43 @@ jobs:
 
                   val raw =
                       context
-                          .getSharedPreferences(PREFS, 0)
-                          .getString(KEY, null)
+                          .getSharedPreferences(
+                              PREFS,
+                              Context.MODE_PRIVATE
+                          )
+                          .getString(
+                              KEY,
+                              null
+                          )
                           ?: return emptyList()
 
-                  val array = JSONArray(raw)
+
+                  val array =
+                      JSONArray(raw)
+
 
                   return buildList {
 
-                      for (i in 0 until array.length()) {
+                      for (
+                          i in 0 until array.length()
+                      ) {
 
-                          val obj = array.getJSONObject(i)
+                          val objectData =
+                              array.getJSONObject(i)
 
                           add(
                               GesturePoint(
-                                  obj.getDouble("x").toFloat(),
-                                  obj.getDouble("y").toFloat(),
-                                  obj.getLong("t")
+
+                                  objectData
+                                      .getDouble("x")
+                                      .toFloat(),
+
+                                  objectData
+                                      .getDouble("y")
+                                      .toFloat(),
+
+                                  objectData
+                                      .getLong("t")
                               )
                           )
                       }
@@ -277,7 +440,12 @@ jobs:
           }
           EOF
 
-      - name: Create Accessibility Service
+
+      # --------------------------------------------------
+      # 15. ACCESSIBILITY SERVICE
+      # --------------------------------------------------
+
+      - name: Create GestureAccessibilityService.kt
         run: |
           cat > app/src/main/java/com/example/gesturerecorder/GestureAccessibilityService.kt <<'EOF'
           package com.example.gesturerecorder
@@ -291,22 +459,29 @@ jobs:
               AccessibilityService() {
 
               companion object {
+
                   var instance:
                       GestureAccessibilityService? = null
               }
 
+
               override fun onServiceConnected() {
+
                   super.onServiceConnected()
+
                   instance = this
               }
+
 
               override fun onAccessibilityEvent(
                   event: AccessibilityEvent?
               ) {
               }
 
+
               override fun onInterrupt() {
               }
+
 
               fun replay(
                   points: List<GesturePoint>,
@@ -314,43 +489,64 @@ jobs:
               ) {
 
                   if (points.isEmpty()) {
+
                       finished()
+
                       return
                   }
 
-                  val path = Path()
+
+                  val path =
+                      Path()
+
 
                   path.moveTo(
                       points[0].x,
                       points[0].y
                   )
 
-                  for (i in 1 until points.size) {
+
+                  for (
+                      i in 1 until points.size
+                  ) {
+
                       path.lineTo(
                           points[i].x,
                           points[i].y
                       )
                   }
 
-                  val duration =
-                      (points.last().timeMs -
-                              points.first().timeMs)
-                          .coerceIn(1L, 60000L)
 
-                  val stroke =
-                      GestureDescription.StrokeDescription(
-                          path,
-                          0L,
-                          duration
+                  val duration =
+                      (
+                          points.last().timeMs -
+                          points.first().timeMs
+                      ).coerceIn(
+                          1L,
+                          60000L
                       )
 
+
+                  val stroke =
+                      GestureDescription
+                          .StrokeDescription(
+                              path,
+                              0L,
+                              duration
+                          )
+
+
                   val gesture =
-                      GestureDescription.Builder()
+                      GestureDescription
+                          .Builder()
                           .addStroke(stroke)
                           .build()
 
+
                   dispatchGesture(
+
                       gesture,
+
                       object :
                           GestureResultCallback() {
 
@@ -358,21 +554,30 @@ jobs:
                               gestureDescription:
                               GestureDescription?
                           ) {
+
                               finished()
                           }
+
 
                           override fun onCancelled(
                               gestureDescription:
                               GestureDescription?
                           ) {
+
                               finished()
                           }
                       },
+
                       null
                   )
               }
           }
           EOF
+
+
+      # --------------------------------------------------
+      # 16. OVERLAY SERVICE
+      # --------------------------------------------------
 
       - name: Create OverlayService.kt
         run: |
@@ -387,30 +592,36 @@ jobs:
           import android.os.IBinder
           import android.view.Gravity
           import android.view.MotionEvent
-          import android.view.View
           import android.view.WindowManager
           import android.widget.Button
           import android.widget.LinearLayout
           import android.widget.Toast
 
-          class OverlayService : Service() {
+          class OverlayService :
+              Service() {
 
-              private lateinit var windowManager:
-                  WindowManager
+              private lateinit var
+                  windowManager: WindowManager
 
-              private lateinit var panel:
-                  LinearLayout
+              private lateinit var
+                  panel: LinearLayout
 
-              private var recording = false
+              private var recording =
+                  false
 
-              private var startTime = 0L
+              private var startTime =
+                  0L
 
               private val points =
                   mutableListOf<GesturePoint>()
 
+
               companion object {
 
-                  fun stop(context: Context) {
+                  fun stop(
+                      context: Context
+                  ) {
+
                       context.stopService(
                           Intent(
                               context,
@@ -418,12 +629,11 @@ jobs:
                           )
                       )
                   }
-
-                  fun stopReplay() {
-                  }
               }
 
+
               override fun onCreate() {
+
                   super.onCreate()
 
                   windowManager =
@@ -431,372 +641,19 @@ jobs:
                           WINDOW_SERVICE
                       ) as WindowManager
 
-                  showOverlay()
+                  createOverlay()
               }
 
-              private fun showOverlay() {
+
+              private fun createOverlay() {
 
                   panel =
                       LinearLayout(this).apply {
+
                           orientation =
                               LinearLayout.HORIZONTAL
 
                           setPadding(
                               6,
                               6,
-                              6,
-                              6
-                          )
-
-                          setBackgroundColor(
-                              Color.WHITE
-                          )
-                      }
-
-                  val record =
-                      Button(this).apply {
-                          text = "● REC"
-
-                          setOnClickListener {
-                              beginRecording()
-                          }
-                      }
-
-                  val stop =
-                      Button(this).apply {
-                          text = "■ STOP"
-
-                          setOnClickListener {
-                              stopRecording()
-                          }
-                      }
-
-                  val close =
-                      Button(this).apply {
-                          text = "×"
-
-                          setOnClickListener {
-                              stop(this@OverlayService)
-                          }
-                      }
-
-                  panel.addView(record)
-                  panel.addView(stop)
-                  panel.addView(close)
-
-                  val type =
-                      if (android.os.Build.VERSION.SDK_INT >= 26)
-                          WindowManager.LayoutParams
-                              .TYPE_APPLICATION_OVERLAY
-                      else
-                          WindowManager.LayoutParams
-                              .TYPE_PHONE
-
-                  val params =
-                      WindowManager.LayoutParams(
-                          WindowManager.LayoutParams.WRAP_CONTENT,
-                          WindowManager.LayoutParams.WRAP_CONTENT,
-                          type,
-                          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                          PixelFormat.TRANSLUCENT
-                      )
-
-                  params.gravity =
-                      Gravity.TOP or
-                              Gravity.CENTER_HORIZONTAL
-
-                  params.y = 40
-
-                  windowManager.addView(
-                      panel,
-                      params
-                  )
-              }
-
-              private fun beginRecording() {
-
-                  recording = true
-
-                  points.clear()
-
-                  startTime =
-                      System.currentTimeMillis()
-
-                  Toast.makeText(
-                      this,
-                      "Recording started",
-                      Toast.LENGTH_SHORT
-                  ).show()
-              }
-
-              private fun stopRecording() {
-
-                  if (!recording)
-                      return
-
-                  recording = false
-
-                  GestureStore.save(
-                      this,
-                      points
-                  )
-
-                  Toast.makeText(
-                      this,
-                      "Gesture saved: ${points.size} points",
-                      Toast.LENGTH_SHORT
-                  ).show()
-              }
-
-              override fun onDestroy() {
-
-                  if (::panel.isInitialized) {
-                      windowManager.removeView(
-                          panel
-                      )
-                  }
-
-                  super.onDestroy()
-              }
-
-              override fun onBind(
-                  intent: Intent?
-              ): IBinder? = null
-          }
-          EOF
-
-      - name: Create MainActivity.kt
-        run: |
-          cat > app/src/main/java/com/example/gesturerecorder/MainActivity.kt <<'EOF'
-          package com.example.gesturerecorder
-
-          import android.content.Intent
-          import android.net.Uri
-          import android.os.Bundle
-          import android.provider.Settings
-          import android.widget.Button
-          import android.widget.LinearLayout
-          import android.widget.TextView
-          import androidx.appcompat.app.AppCompatActivity
-
-          class MainActivity :
-              AppCompatActivity() {
-
-              private lateinit var status:
-                  TextView
-
-              override fun onCreate(
-                  savedInstanceState: Bundle?
-              ) {
-                  super.onCreate(
-                      savedInstanceState
-                  )
-
-                  val root =
-                      LinearLayout(this).apply {
-
-                          orientation =
-                              LinearLayout.VERTICAL
-
-                          setPadding(
-                              24,
-                              24,
-                              24,
-                              24
-                          )
-                      }
-
-                  status =
-                      TextView(this).apply {
-                          text = "Ready"
-                          textSize = 18f
-                      }
-
-                  root.addView(status)
-
-                  root.addView(
-                      button(
-                          "▶ Start Recording"
-                      ) {
-                          startRecording()
-                      }
-                  )
-
-                  root.addView(
-                      button(
-                          "■ Stop Recording"
-                      ) {
-                          OverlayService.stop(
-                              this
-                          )
-                      }
-                  )
-
-                  root.addView(
-                      button(
-                          "↻ Replay Saved Gesture"
-                      ) {
-                          replay()
-                      }
-                  )
-
-                  root.addView(
-                      button(
-                          "■ Stop Replay"
-                      ) {
-                          status.text =
-                              "Replay stopped"
-                      }
-                  )
-
-                  root.addView(
-                      button(
-                          "Open Accessibility Settings"
-                      ) {
-                          startActivity(
-                              Intent(
-                                  Settings.ACTION_ACCESSIBILITY_SETTINGS
-                              )
-                          )
-                      }
-                  )
-
-                  root.addView(
-                      button(
-                          "Open Overlay Permission"
-                      ) {
-                          startActivity(
-                              Intent(
-                                  Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                  Uri.parse(
-                                      "package:$packageName"
-                                  )
-                              )
-                          )
-                      }
-                  )
-
-                  root.addView(
-                      TextView(this).apply {
-                          text =
-                              "Use Start Recording, then switch to the other app and perform your gestures. Stop Recording from the floating control."
-                      }
-                  )
-
-                  setContentView(root)
-              }
-
-              private fun button(
-                  text: String,
-                  action: () -> Unit
-              ): Button {
-
-                  return Button(this).apply {
-                      this.text = text
-                      setOnClickListener {
-                          action()
-                      }
-                  }
-              }
-
-              private fun startRecording() {
-
-                  if (!Settings.canDrawOverlays(
-                          this
-                      )
-                  ) {
-
-                      status.text =
-                          "Allow Display over other apps first."
-
-                      startActivity(
-                          Intent(
-                              Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                              Uri.parse(
-                                  "package:$packageName"
-                              )
-                          )
-                      )
-
-                      return
-                  }
-
-                  startService(
-                      Intent(
-                          this,
-                          OverlayService::class.java
-                      )
-                  )
-
-                  status.text =
-                      "Recording overlay started"
-              }
-
-              private fun replay() {
-
-                  val service =
-                      GestureAccessibilityService
-                          .instance
-
-                  if (service == null) {
-
-                      status.text =
-                          "Enable the Accessibility Service first."
-
-                      startActivity(
-                          Intent(
-                              Settings.ACTION_ACCESSIBILITY_SETTINGS
-                          )
-                      )
-
-                      return
-                  }
-
-                  val points =
-                      GestureStore.load(
-                          this
-                      )
-
-                  if (points.isEmpty()) {
-
-                      status.text =
-                          "No saved gesture."
-
-                      return
-                  }
-
-                  status.text =
-                      "Replaying saved gesture…"
-
-                  service.replay(points) {
-
-                      runOnUiThread {
-
-                          status.text =
-                              "Replay finished"
-                      }
-                  }
-              }
-          }
-          EOF
-
-      - name: Generate Gradle wrapper
-        run: |
-          gradle wrapper --gradle-version 8.9
-
-      - name: Build debug APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
-
-      - name: Verify APK
-        run: |
-          test -f app/build/outputs/apk/debug/app-debug.apk
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: GestureRecorderOverlay-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+                              
