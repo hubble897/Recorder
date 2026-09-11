@@ -1,4 +1,4 @@
-name: Build Gesture Recorder - Android 16 Test
+name: Build Gesture Recorder Android 16 Test
 
 on:
   workflow_dispatch:
@@ -8,55 +8,45 @@ permissions:
 
 jobs:
   build:
-    name: Build Android 16 Test APK
+    name: Build installable Android 16 APK
     runs-on: ubuntu-latest
 
     steps:
 
-      # ---------------------------------------------------------
-      # 1. Get repository
-      # ---------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ---------------------------------------------------------
-      # 2. Java 17
-      # ---------------------------------------------------------
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # ---------------------------------------------------------
-      # 3. Android SDK
-      # ---------------------------------------------------------
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK
         run: |
           yes | sdkmanager --licenses || true
+
           sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-      # ---------------------------------------------------------
-      # 4. Install Gradle
-      # ---------------------------------------------------------
       - name: Install Gradle
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          wget -q \
+            https://services.gradle.org/distributions/gradle-8.9-bin.zip
+
           unzip -q gradle-8.9-bin.zip
+
           echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
 
-      # ---------------------------------------------------------
-      # 5. Create project
-      # ---------------------------------------------------------
       - name: Create Android project
         shell: bash
         run: |
+
           set -e
 
           mkdir -p gesture-recorder/app/src/main/java/com/gesture/recorder
@@ -74,13 +64,15 @@ jobs:
 
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
               repositories {
                   google()
                   mavenCentral()
               }
           }
 
-          rootProject.name = "GestureRecorder"
+          rootProject.name = "GestureRecorderTest"
+
           include(":app")
           EOF
 
@@ -103,17 +95,22 @@ jobs:
 
           android {
               namespace 'com.gesture.recorder'
+
               compileSdk 35
 
               defaultConfig {
-                  applicationId 'com.gesture.recorder'
+
+                  applicationId 'com.gesture.recorder.test'
+
                   minSdk 26
                   targetSdk 35
-                  versionCode 2
-                  versionName '1.1'
+
+                  versionCode 1
+                  versionName '1.0'
               }
 
               buildTypes {
+
                   debug {
                       debuggable true
                       minifyEnabled false
@@ -121,7 +118,6 @@ jobs:
                   }
 
                   release {
-                      debuggable false
                       minifyEnabled false
                       shrinkResources false
                   }
@@ -150,8 +146,13 @@ jobs:
                       android:exported="true">
 
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
+
+                          <action
+                              android:name="android.intent.action.MAIN" />
+
+                          <category
+                              android:name="android.intent.category.LAUNCHER" />
+
                       </intent-filter>
 
                   </activity>
@@ -162,7 +163,10 @@ jobs:
                       android:exported="false">
 
                       <intent-filter>
-                          <action android:name="android.accessibilityservice.AccessibilityService" />
+
+                          <action
+                              android:name="android.accessibilityservice.AccessibilityService" />
+
                       </intent-filter>
 
                       <meta-data
@@ -192,10 +196,10 @@ jobs:
           cat > gesture-recorder/app/src/main/res/values/strings.xml <<'EOF'
           <resources>
 
-              <string name="app_name">Gesture Recorder</string>
+              <string name="app_name">Gesture Recorder TEST</string>
 
               <string name="accessibility_description">
-                  Gesture Recorder uses Android Accessibility Service to control gestures for user-authorized recording and replay.
+                  Gesture Recorder test accessibility service for user-authorized gesture recording and replay.
               </string>
 
           </resources>
@@ -216,12 +220,10 @@ jobs:
           </resources>
           EOF
 
-      # ---------------------------------------------------------
-      # 6. Main application
-      # ---------------------------------------------------------
       - name: Create MainActivity
         shell: bash
         run: |
+
           cat > gesture-recorder/app/src/main/java/com/gesture/recorder/MainActivity.java <<'EOF'
           package com.gesture.recorder;
 
@@ -241,51 +243,96 @@ jobs:
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
+
                   super.onCreate(savedInstanceState);
 
-                  LinearLayout layout = new LinearLayout(this);
-                  layout.setOrientation(LinearLayout.VERTICAL);
-                  layout.setPadding(40, 40, 40, 40);
-                  layout.setGravity(Gravity.CENTER_HORIZONTAL);
+                  LinearLayout layout =
+                      new LinearLayout(this);
 
-                  TextView title = new TextView(this);
-                  title.setText("Gesture Recorder");
+                  layout.setOrientation(
+                      LinearLayout.VERTICAL
+                  );
+
+                  layout.setGravity(
+                      Gravity.CENTER_HORIZONTAL
+                  );
+
+                  layout.setPadding(
+                      40,
+                      40,
+                      40,
+                      40
+                  );
+
+                  TextView title =
+                      new TextView(this);
+
+                  title.setText(
+                      "Gesture Recorder TEST"
+                  );
+
                   title.setTextSize(28);
-                  title.setGravity(Gravity.CENTER);
-                  title.setPadding(0, 0, 0, 20);
+
+                  title.setGravity(
+                      Gravity.CENTER
+                  );
 
                   layout.addView(title);
 
-                  TextView info = new TextView(this);
+                  TextView info =
+                      new TextView(this);
+
                   info.setText(
                       "Android 16 test build\\n\\n" +
-                      "First enable the Accessibility Service.\\n" +
-                      "Then recording and replay controls can be tested."
+                      "This is a clean test installation.\\n" +
+                      "The package name is different from previous builds."
                   );
+
                   info.setTextSize(16);
-                  info.setGravity(Gravity.CENTER);
-                  info.setPadding(0, 0, 0, 25);
+
+                  info.setGravity(
+                      Gravity.CENTER
+                  );
+
+                  info.setPadding(
+                      0,
+                      25,
+                      0,
+                      25
+                  );
 
                   layout.addView(info);
 
-                  status = new TextView(this);
-                  status.setText("Status: Ready");
+                  status =
+                      new TextView(this);
+
+                  status.setText(
+                      "Status: Ready"
+                  );
+
                   status.setTextSize(18);
-                  status.setGravity(Gravity.CENTER);
-                  status.setPadding(0, 0, 0, 20);
+
+                  status.setGravity(
+                      Gravity.CENTER
+                  );
 
                   layout.addView(status);
 
-                  Button accessibility = new Button(this);
+                  Button accessibility =
+                      new Button(this);
+
                   accessibility.setText(
                       "Enable Accessibility Service"
                   );
 
                   accessibility.setOnClickListener(v -> {
+
                       try {
-                          Intent intent = new Intent(
-                              Settings.ACTION_ACCESSIBILITY_SETTINGS
-                          );
+
+                          Intent intent =
+                              new Intent(
+                                  Settings.ACTION_ACCESSIBILITY_SETTINGS
+                              );
 
                           startActivity(intent);
 
@@ -301,42 +348,78 @@ jobs:
 
                   layout.addView(accessibility);
 
-                  Button start = new Button(this);
-                  start.setText("START RECORDING");
+                  Button start =
+                      new Button(this);
+
+                  start.setText(
+                      "START RECORDING"
+                  );
 
                   start.setOnClickListener(v -> {
-                      GestureAccessibilityService.startRecording();
-                      status.setText("Status: Recording");
+
+                      GestureAccessibilityService
+                          .startRecording();
+
+                      status.setText(
+                          "Status: Recording"
+                      );
                   });
 
                   layout.addView(start);
 
-                  Button stop = new Button(this);
-                  stop.setText("STOP RECORDING");
+                  Button stop =
+                      new Button(this);
+
+                  stop.setText(
+                      "STOP RECORDING"
+                  );
 
                   stop.setOnClickListener(v -> {
-                      GestureAccessibilityService.stopRecording();
-                      status.setText("Status: Stopped");
+
+                      GestureAccessibilityService
+                          .stopRecording();
+
+                      status.setText(
+                          "Status: Stopped"
+                      );
                   });
 
                   layout.addView(stop);
 
-                  Button replay = new Button(this);
-                  replay.setText("REPLAY");
+                  Button replay =
+                      new Button(this);
+
+                  replay.setText(
+                      "REPLAY TEST GESTURE"
+                  );
 
                   replay.setOnClickListener(v -> {
-                      GestureAccessibilityService.replayGesture();
-                      status.setText("Status: Replay requested");
+
+                      GestureAccessibilityService
+                          .replayGesture();
+
+                      status.setText(
+                          "Status: Replay requested"
+                      );
                   });
 
                   layout.addView(replay);
 
-                  Button clear = new Button(this);
-                  clear.setText("CLEAR RECORDING");
+                  Button clear =
+                      new Button(this);
+
+                  clear.setText(
+                      "CLEAR RECORDING"
+                  );
 
                   clear.setOnClickListener(v -> {
-                      GestureAccessibilityService.clearRecording();
-                      status.setText("Status: Recording cleared");
+
+                      GestureAccessibilityService
+                          .clearRecording();
+
+                      status.setText(
+                          "Status: Recording cleared"
+                      );
                   });
 
                   layout.addView(clear);
@@ -346,12 +429,10 @@ jobs:
           }
           EOF
 
-      # ---------------------------------------------------------
-      # 7. Accessibility Service
-      # ---------------------------------------------------------
       - name: Create Accessibility Service
         shell: bash
         run: |
+
           cat > gesture-recorder/app/src/main/java/com/gesture/recorder/GestureAccessibilityService.java <<'EOF'
           package com.gesture.recorder;
 
@@ -364,13 +445,16 @@ jobs:
           public class GestureAccessibilityService
                   extends AccessibilityService {
 
-              private static GestureAccessibilityService instance;
+              private static
+              GestureAccessibilityService instance;
 
               private static boolean recording = false;
 
               @Override
               protected void onServiceConnected() {
+
                   super.onServiceConnected();
+
                   instance = this;
               }
 
@@ -382,7 +466,8 @@ jobs:
                       return;
                   }
 
-                  // Recording engine will be added in the next build.
+                  // Recording engine will be implemented
+                  // after the installation test succeeds.
               }
 
               @Override
@@ -391,20 +476,26 @@ jobs:
 
               @Override
               public void onDestroy() {
-                  instance = null;
+
                   recording = false;
+
+                  instance = null;
+
                   super.onDestroy();
               }
 
               public static void startRecording() {
+
                   recording = true;
               }
 
               public static void stopRecording() {
+
                   recording = false;
               }
 
               public static void clearRecording() {
+
                   recording = false;
               }
 
@@ -414,14 +505,25 @@ jobs:
                       return;
                   }
 
-                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+                  if (
+                      Build.VERSION.SDK_INT <
+                      Build.VERSION_CODES.N
+                  ) {
                       return;
                   }
 
-                  Path path = new Path();
+                  Path path =
+                      new Path();
 
-                  path.moveTo(500, 500);
-                  path.lineTo(700, 500);
+                  path.moveTo(
+                      500,
+                      500
+                  );
+
+                  path.lineTo(
+                      700,
+                      500
+                  );
 
                   GestureDescription.StrokeDescription stroke =
                       new GestureDescription.StrokeDescription(
@@ -444,40 +546,39 @@ jobs:
           }
           EOF
 
-      # ---------------------------------------------------------
-      # 8. Build DEBUG APK
-      # ---------------------------------------------------------
-      - name: Build Android 16 test APK
+      - name: Build debug APK
         working-directory: gesture-recorder
         run: |
+
           set -e
 
           gradle clean assembleDebug \
             --no-daemon \
             --stacktrace
 
-      # ---------------------------------------------------------
-      # 9. Verify APK
-      # ---------------------------------------------------------
       - name: Verify APK
         run: |
+
           set -e
 
           APK="gesture-recorder/app/build/outputs/apk/debug/app-debug.apk"
 
-          test -f "$APK"
+          if [ ! -f "$APK" ]; then
+              echo "ERROR: APK was not created."
+              exit 1
+          fi
 
           echo "APK successfully created:"
           ls -lh "$APK"
 
-          echo "APK information:"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -20
+          echo ""
+          echo "Package information:"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" \
+            dump badging "$APK" | head -15
 
-      # ---------------------------------------------------------
-      # 10. Rename APK
-      # ---------------------------------------------------------
-      - name: Prepare APK
+      - name: Create output
         run: |
+
           set -e
 
           mkdir -p output
@@ -486,12 +587,11 @@ jobs:
             gesture-recorder/app/build/outputs/apk/debug/app-debug.apk \
             output/Gesture-Recorder-Android16-Test.apk
 
-          ls -lh output/Gesture-Recorder-Android16-Test.apk
+          echo "Final APK:"
+          ls -lh \
+            output/Gesture-Recorder-Android16-Test.apk
 
-      # ---------------------------------------------------------
-      # 11. Upload artifact
-      # ---------------------------------------------------------
-      - name: Upload Android 16 test APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Gesture-Recorder-Android16-Test
