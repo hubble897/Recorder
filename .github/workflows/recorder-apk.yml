@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   build:
-    name: Build APK
+    name: Build Signed Gesture Recorder APK
     runs-on: ubuntu-latest
 
     steps:
@@ -38,9 +38,9 @@ jobs:
 
 
       # =========================================================
-      # 4. INSTALL SDK COMPONENTS
+      # 4. INSTALL ANDROID 35
       # =========================================================
-      - name: Install Android SDK 35
+      - name: Install Android SDK components
         shell: bash
         run: |
           set -e
@@ -50,9 +50,9 @@ jobs:
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-          yes | sdkmanager --licenses >/dev/null || true
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
 
-          echo "Android SDK ready."
+          echo "Android SDK 35 ready."
 
 
       # =========================================================
@@ -150,13 +150,10 @@ jobs:
               }
 
               buildTypes {
-                  debug {
-                      debuggable true
-                  }
-
                   release {
                       minifyEnabled false
                       shrinkResources false
+                      debuggable false
                   }
               }
 
@@ -251,7 +248,7 @@ jobs:
               <string name="app_name">Gesture Recorder</string>
 
               <string name="accessibility_description">
-                  Records and replays gestures when explicitly enabled by the user.
+                  Performs touch gestures when explicitly requested by the user.
               </string>
 
           </resources>
@@ -320,9 +317,13 @@ jobs:
 
                   if (statusText != null) {
                       if (isAccessibilityEnabled()) {
-                          statusText.setText("Status: Accessibility Service enabled");
+                          statusText.setText(
+                                  "Status: Accessibility Service enabled"
+                          );
                       } else {
-                          statusText.setText("Status: Accessibility Service disabled");
+                          statusText.setText(
+                                  "Status: Accessibility Service disabled"
+                          );
                       }
                   }
               }
@@ -564,7 +565,9 @@ jobs:
               private void updateStatus(String text) {
 
                   if (statusText != null) {
-                      statusText.setText("Status: " + text);
+                      statusText.setText(
+                              "Status: " + text
+                      );
                   }
               }
           }
@@ -593,8 +596,6 @@ jobs:
 
               private static boolean recording = false;
 
-              private static long recordingStartTime = 0;
-
               @Override
               protected void onServiceConnected() {
                   super.onServiceConnected();
@@ -603,16 +604,7 @@ jobs:
 
               @Override
               public void onAccessibilityEvent(AccessibilityEvent event) {
-
-                  if (!recording) {
-                      return;
-                  }
-
-                  /*
-                   * Accessibility events do not expose every raw touchscreen
-                   * movement. This service is kept ready for gesture capture
-                   * and replay through Android's accessibility gesture API.
-                   */
+                  // Reserved for future gesture recording implementation.
               }
 
               @Override
@@ -630,20 +622,15 @@ jobs:
               }
 
               public static void startRecording() {
-
                   recording = true;
-                  recordingStartTime = System.currentTimeMillis();
               }
 
               public static void stopRecording() {
-
                   recording = false;
               }
 
               public static void clearRecording() {
-
                   recording = false;
-                  recordingStartTime = 0;
               }
 
               public static void replayGesture() {
@@ -651,12 +638,6 @@ jobs:
                   if (instance == null) {
                       return;
                   }
-
-                  /*
-                   * Demonstration gesture.
-                   * A future recorder can replace this with the recorded
-                   * GestureDescription sequence.
-                   */
 
                   Path path = new Path();
 
@@ -678,7 +659,9 @@ jobs:
                   instance.dispatchGesture(
                           gesture,
                           null,
-                          new Handler(Looper.getMainLooper())
+                          new Handler(
+                                  Looper.getMainLooper()
+                          )
                   );
               }
           }
@@ -686,7 +669,7 @@ jobs:
 
 
       # =========================================================
-      # 16. DOWNLOAD GRADLE 8.9
+      # 16. DOWNLOAD GRADLE
       # =========================================================
       - name: Install Gradle 8.9
         shell: bash
@@ -704,23 +687,13 @@ jobs:
 
           echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
 
-          echo "Gradle installed."
+          echo "Gradle 8.9 installed."
 
 
       # =========================================================
-      # 17. CHECK GRADLE
+      # 17. BUILD RELEASE APK
       # =========================================================
-      - name: Check Gradle
-        shell: bash
-        run: |
-          cd gesture-recorder
-          gradle --version
-
-
-      # =========================================================
-      # 18. BUILD DEBUG APK
-      # =========================================================
-      - name: Build Debug APK
+      - name: Build release APK
         shell: bash
         run: |
           set -e
@@ -730,63 +703,126 @@ jobs:
           gradle \
             --no-daemon \
             --stacktrace \
-            assembleDebug
+            assembleRelease
 
           echo ""
-          echo "APK files created:"
-          find app/build/outputs/apk -type f -print
+          echo "Release APK created:"
+
+          find app/build/outputs/apk/release \
+            -type f \
+            -print
 
 
       # =========================================================
-      # 19. VERIFY APK EXISTS
+      # 18. GENERATE TEMPORARY SIGNING KEY
       # =========================================================
-      - name: Verify APK
+      - name: Generate Android signing key
         shell: bash
         run: |
           set -e
 
-          APK="gesture-recorder/app/build/outputs/apk/debug/app-debug.apk"
+          mkdir -p signing
 
-          if [ ! -f "$APK" ]; then
-            echo "ERROR: APK was not created."
-            echo ""
-            echo "Searching build directory:"
+          keytool \
+            -genkeypair \
+            -v \
+            -keystore signing/gesture-recorder.keystore \
+            -alias gesture-recorder \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "GestureRecorderBuild2026!" \
+            -keypass "GestureRecorderBuild2026!" \
+            -dname "CN=Gesture Recorder, OU=Mobile, O=Gesture Recorder, L=Brisbane, ST=QLD, C=AU"
+
+          echo "Signing key generated."
+
+
+      # =========================================================
+      # 19. ZIPALIGN + SIGN APK
+      # =========================================================
+      - name: Zipalign and sign APK
+        shell: bash
+        run: |
+          set -e
+
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+
+          INPUT_APK="gesture-recorder/app/build/outputs/apk/release/app-release-unsigned.apk"
+
+          ALIGNED_APK="Gesture-Recorder-aligned.apk"
+
+          FINAL_APK="Gesture-Recorder.apk"
+
+          if [ ! -f "$INPUT_APK" ]; then
+            echo "ERROR: Unsigned release APK was not found."
             find gesture-recorder/app/build -type f -print || true
             exit 1
           fi
 
-          echo "=========================================="
-          echo "APK FOUND"
-          echo "=========================================="
-          ls -lh "$APK"
-          file "$APK"
+          echo "Zipaligning APK..."
+
+          "$BUILD_TOOLS/zipalign" \
+            -p \
+            -f \
+            4 \
+            "$INPUT_APK" \
+            "$ALIGNED_APK"
+
+          echo "Signing APK..."
+
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks signing/gesture-recorder.keystore \
+            --ks-key-alias gesture-recorder \
+            --ks-pass pass:"GestureRecorderBuild2026!" \
+            --key-pass pass:"GestureRecorderBuild2026!" \
+            --out "$FINAL_APK" \
+            "$ALIGNED_APK"
+
+          echo "APK signed successfully."
+
+          rm -f "$ALIGNED_APK"
 
 
       # =========================================================
-      # 20. COPY APK TO SIMPLE FILENAME
+      # 20. VERIFY APK SIGNATURE
       # =========================================================
-      - name: Prepare APK artifact
+      - name: Verify APK signature
         shell: bash
         run: |
           set -e
 
-          mkdir -p artifacts
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
 
-          cp \
-            gesture-recorder/app/build/outputs/apk/debug/app-debug.apk \
-            artifacts/Gesture-Recorder.apk
+          if [ ! -f "Gesture-Recorder.apk" ]; then
+            echo "ERROR: Signed APK does not exist."
+            exit 1
+          fi
 
-          echo "Artifact prepared:"
-          ls -lh artifacts/Gesture-Recorder.apk
+          echo "Verifying APK signature..."
+
+          "$BUILD_TOOLS/apksigner" verify \
+            --verbose \
+            --print-certs \
+            Gesture-Recorder.apk
+
+          echo ""
+          echo "=========================================="
+          echo "SIGNED APK VERIFIED"
+          echo "=========================================="
+
+          ls -lh Gesture-Recorder.apk
+
+          file Gesture-Recorder.apk
 
 
       # =========================================================
-      # 21. UPLOAD APK ARTIFACT
+      # 21. UPLOAD FINAL SIGNED APK
       # =========================================================
-      - name: Upload Gesture Recorder APK
+      - name: Upload signed Gesture Recorder APK
         uses: actions/upload-artifact@v4
         with:
           name: Gesture-Recorder-APK
-          path: artifacts/Gesture-Recorder.apk
+          path: Gesture-Recorder.apk
           if-no-files-found: error
           retention-days: 14
