@@ -1,4 +1,4 @@
-name: Build Gesture Recorder APK
+name: Build Gesture Recorder - Google Play Internal Testing
 
 on:
   workflow_dispatch:
@@ -8,717 +8,496 @@ permissions:
 
 jobs:
   build:
-    name: Build Signed Gesture Recorder APK
+    name: Build signed Android App Bundle
     runs-on: ubuntu-latest
 
     steps:
 
-      # =========================================================
-      # 1. CHECKOUT
-      # =========================================================
+      # ---------------------------------------------------------
+      # 1. Checkout
+      # ---------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
-      # =========================================================
-      # 2. JAVA 17
-      # =========================================================
+      # ---------------------------------------------------------
+      # 2. Java 17
+      # ---------------------------------------------------------
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-
-      # =========================================================
-      # 3. ANDROID SDK
-      # =========================================================
+      # ---------------------------------------------------------
+      # 3. Android SDK
+      # ---------------------------------------------------------
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-
-      # =========================================================
-      # 4. INSTALL ANDROID 35
-      # =========================================================
-      - name: Install Android SDK components
-        shell: bash
+      - name: Install Android SDK
         run: |
-          set -e
-
-          sdkmanager --install \
+          yes | sdkmanager --licenses || true
+          sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-
-          echo "Android SDK 35 ready."
-
-
-      # =========================================================
-      # 5. CREATE PROJECT DIRECTORIES
-      # =========================================================
-      - name: Create Android project
+      # ---------------------------------------------------------
+      # 4. Create project
+      # ---------------------------------------------------------
+      - name: Create Gesture Recorder project
         shell: bash
         run: |
+
           set -e
 
           mkdir -p gesture-recorder/app/src/main/java/com/gesture/recorder
           mkdir -p gesture-recorder/app/src/main/res/xml
           mkdir -p gesture-recorder/app/src/main/res/values
 
-
-      # =========================================================
-      # 6. SETTINGS.GRADLE
-      # =========================================================
-      - name: Create settings.gradle
-        shell: bash
-        run: |
-          cat > gesture-recorder/settings.gradle <<'EOF'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-
-          rootProject.name = "GestureRecorder"
-
-          include(":app")
-          EOF
-
-
-      # =========================================================
-      # 7. ROOT BUILD.GRADLE
-      # =========================================================
-      - name: Create root build.gradle
-        shell: bash
-        run: |
-          cat > gesture-recorder/build.gradle <<'EOF'
-          plugins {
-              id 'com.android.application' version '8.7.3' apply false
-          }
-          EOF
-
-
-      # =========================================================
-      # 8. GRADLE PROPERTIES
-      # =========================================================
-      - name: Create gradle.properties
-        shell: bash
-        run: |
-          cat > gesture-recorder/gradle.properties <<'EOF'
-          android.useAndroidX=true
-          android.nonTransitiveRClass=true
-          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-          EOF
-
-
-      # =========================================================
-      # 9. APP BUILD.GRADLE
-      # =========================================================
-      - name: Create app build.gradle
-        shell: bash
-        run: |
-          cat > gesture-recorder/app/build.gradle <<'EOF'
-          plugins {
-              id 'com.android.application'
-          }
-
-          android {
-              namespace 'com.gesture.recorder'
-
-              compileSdk 35
-
-              defaultConfig {
-                  applicationId 'com.gesture.recorder'
-                  minSdk 26
-                  targetSdk 35
-
-                  versionCode 1
-                  versionName "1.0"
-              }
-
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                      shrinkResources false
-                      debuggable false
-                  }
-              }
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-          EOF
-
-
-      # =========================================================
-      # 10. ANDROID MANIFEST
-      # =========================================================
-      - name: Create AndroidManifest.xml
-        shell: bash
-        run: |
-          cat > gesture-recorder/app/src/main/AndroidManifest.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-              <application
-                  android:allowBackup="true"
-                  android:label="@string/app_name"
-                  android:supportsRtl="true"
-                  android:theme="@style/AppTheme">
-
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true">
-
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-
-                  </activity>
-
-                  <service
-                      android:name=".GestureAccessibilityService"
-                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-                      android:exported="true">
-
-                      <intent-filter>
-                          <action android:name="android.accessibilityservice.AccessibilityService" />
-                      </intent-filter>
-
-                      <meta-data
-                          android:name="android.accessibilityservice"
-                          android:resource="@xml/accessibility_service_config" />
-
-                  </service>
-
-              </application>
-
-          </manifest>
-          EOF
-
-
-      # =========================================================
-      # 11. ACCESSIBILITY CONFIG
-      # =========================================================
-      - name: Create accessibility configuration
-        shell: bash
-        run: |
-          cat > gesture-recorder/app/src/main/res/xml/accessibility_service_config.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-
-          <accessibility-service
-              xmlns:android="http://schemas.android.com/apk/res/android"
-              android:accessibilityEventTypes="typeAllMask"
-              android:accessibilityFeedbackType="feedbackGeneric"
-              android:notificationTimeout="100"
-              android:canRetrieveWindowContent="true"
-              android:canPerformGestures="true"
-              android:description="@string/accessibility_description" />
-          EOF
-
-
-      # =========================================================
-      # 12. STRINGS
-      # =========================================================
-      - name: Create strings.xml
-        shell: bash
-        run: |
-          cat > gesture-recorder/app/src/main/res/values/strings.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-
-          <resources>
-
-              <string name="app_name">Gesture Recorder</string>
-
-              <string name="accessibility_description">
-                  Performs touch gestures when explicitly requested by the user.
-              </string>
-
-          </resources>
-          EOF
-
-
-      # =========================================================
-      # 13. STYLES
-      # =========================================================
-      - name: Create styles.xml
-        shell: bash
-        run: |
-          cat > gesture-recorder/app/src/main/res/values/styles.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-
-          <resources>
-
-              <style
-                  name="AppTheme"
-                  parent="android:style/Theme.Material.Light.NoActionBar">
-
-                  <item name="android:fontFamily">sans</item>
-                  <item name="android:colorAccent">#3F51B5</item>
-
-              </style>
-
-          </resources>
-          EOF
-
-
-      # =========================================================
-      # 14. MAIN ACTIVITY
-      # =========================================================
-      - name: Create MainActivity.java
-        shell: bash
-        run: |
-          cat > gesture-recorder/app/src/main/java/com/gesture/recorder/MainActivity.java <<'EOF'
-          package com.gesture.recorder;
-
-          import android.app.Activity;
-          import android.app.AlertDialog;
-          import android.content.Intent;
-          import android.os.Bundle;
-          import android.provider.Settings;
-          import android.view.Gravity;
-          import android.view.View;
-          import android.widget.Button;
-          import android.widget.LinearLayout;
-          import android.widget.ScrollView;
-          import android.widget.TextView;
-          import android.widget.Toast;
-
-          public class MainActivity extends Activity {
-
-              private TextView statusText;
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  buildInterface();
-              }
-
-              @Override
-              protected void onResume() {
-                  super.onResume();
-
-                  if (statusText != null) {
-                      if (isAccessibilityEnabled()) {
-                          statusText.setText(
-                                  "Status: Accessibility Service enabled"
-                          );
-                      } else {
-                          statusText.setText(
-                                  "Status: Accessibility Service disabled"
-                          );
-                      }
-                  }
-              }
-
-              private void buildInterface() {
-
-                  ScrollView scrollView = new ScrollView(this);
-
-                  LinearLayout layout = new LinearLayout(this);
-
-                  layout.setOrientation(LinearLayout.VERTICAL);
-                  layout.setPadding(32, 32, 32, 32);
-                  layout.setGravity(Gravity.CENTER_HORIZONTAL);
-
-                  TextView title = new TextView(this);
-
-                  title.setText("Gesture Recorder");
-                  title.setTextSize(28);
-                  title.setGravity(Gravity.CENTER);
-
-                  layout.addView(title);
-
-                  TextView description = new TextView(this);
-
-                  description.setText(
-                          "Record touchscreen gestures and replay them later.\\n\\n" +
-                          "Accessibility Service is required for gesture replay."
-                  );
-
-                  description.setTextSize(16);
-                  description.setPadding(0, 30, 0, 30);
-
-                  layout.addView(description);
-
-                  Button accessibilityButton = new Button(this);
-
-                  accessibilityButton.setText(
-                          "1. Enable Accessibility Service"
-                  );
-
-                  accessibilityButton.setOnClickListener(
-                          new View.OnClickListener() {
-                              @Override
-                              public void onClick(View view) {
-                                  showAccessibilityDisclosure();
-                              }
-                          }
-                  );
-
-                  layout.addView(accessibilityButton);
-
-                  Button recordButton = new Button(this);
-
-                  recordButton.setText(
-                          "2. Start Recording"
-                  );
-
-                  recordButton.setOnClickListener(
-                          new View.OnClickListener() {
-                              @Override
-                              public void onClick(View view) {
-
-                                  if (!isAccessibilityEnabled()) {
-
-                                      Toast.makeText(
-                                              MainActivity.this,
-                                              "Enable Accessibility Service first.",
-                                              Toast.LENGTH_LONG
-                                      ).show();
-
-                                      return;
-                                  }
-
-                                  GestureAccessibilityService.startRecording();
-
-                                  updateStatus("Recording...");
-                              }
-                          }
-                  );
-
-                  layout.addView(recordButton);
-
-                  Button stopButton = new Button(this);
-
-                  stopButton.setText(
-                          "3. Stop Recording"
-                  );
-
-                  stopButton.setOnClickListener(
-                          new View.OnClickListener() {
-                              @Override
-                              public void onClick(View view) {
-
-                                  GestureAccessibilityService.stopRecording();
-
-                                  updateStatus(
-                                          "Recording stopped."
-                                  );
-                              }
-                          }
-                  );
-
-                  layout.addView(stopButton);
-
-                  Button replayButton = new Button(this);
-
-                  replayButton.setText(
-                          "4. Replay Gesture"
-                  );
-
-                  replayButton.setOnClickListener(
-                          new View.OnClickListener() {
-                              @Override
-                              public void onClick(View view) {
-
-                                  if (!isAccessibilityEnabled()) {
-
-                                      Toast.makeText(
-                                              MainActivity.this,
-                                              "Enable Accessibility Service first.",
-                                              Toast.LENGTH_LONG
-                                      ).show();
-
-                                      return;
-                                  }
-
-                                  GestureAccessibilityService.replayGesture();
-
-                                  updateStatus(
-                                          "Replaying gesture."
-                                  );
-                              }
-                          }
-                  );
-
-                  layout.addView(replayButton);
-
-                  Button clearButton = new Button(this);
-
-                  clearButton.setText(
-                          "5. Clear Recording"
-                  );
-
-                  clearButton.setOnClickListener(
-                          new View.OnClickListener() {
-                              @Override
-                              public void onClick(View view) {
-
-                                  GestureAccessibilityService.clearRecording();
-
-                                  updateStatus(
-                                          "Recording cleared."
-                                  );
-                              }
-                          }
-                  );
-
-                  layout.addView(clearButton);
-
-                  statusText = new TextView(this);
-
-                  statusText.setText(
-                          "Status: Ready"
-                  );
-
-                  statusText.setTextSize(17);
-
-                  statusText.setPadding(
-                          0,
-                          40,
-                          0,
-                          20
-                  );
-
-                  layout.addView(statusText);
-
-                  TextView warning = new TextView(this);
-
-                  warning.setText(
-                          "Only enable Accessibility Service if you trust this app.\\n\\n" +
-                          "Gesture data is stored locally by this application."
-                  );
-
-                  warning.setTextSize(14);
-
-                  layout.addView(warning);
-
-                  scrollView.addView(layout);
-
-                  setContentView(scrollView);
-              }
-
-              private void showAccessibilityDisclosure() {
-
-                  new AlertDialog.Builder(this)
-                          .setTitle("Accessibility Service")
-                          .setMessage(
-                                  "Gesture Recorder uses Accessibility Service " +
-                                  "to perform gestures when you request replay.\\n\\n" +
-                                  "Do you understand and want to continue?"
-                          )
-                          .setNegativeButton(
-                                  "Cancel",
-                                  null
-                          )
-                          .setPositiveButton(
-                                  "Continue",
-                                  (dialog, which) -> {
-
-                                      Intent intent =
-                                              new Intent(
-                                                      Settings.ACTION_ACCESSIBILITY_SETTINGS
-                                              );
-
-                                      startActivity(intent);
-                                  }
-                          )
-                          .show();
-              }
-
-              private boolean isAccessibilityEnabled() {
-
-                  try {
-
-                      int enabled =
-                              Settings.Secure.getInt(
-                                      getContentResolver(),
-                                      Settings.Secure.ACCESSIBILITY_ENABLED
-                              );
-
-                      return enabled == 1;
-
-                  } catch (Exception e) {
-
-                      return false;
-                  }
-              }
-
-              private void updateStatus(String text) {
-
-                  if (statusText != null) {
-                      statusText.setText(
-                              "Status: " + text
-                      );
-                  }
-              }
-          }
-          EOF
-
-
-      # =========================================================
-      # 15. ACCESSIBILITY SERVICE
-      # =========================================================
-      - name: Create GestureAccessibilityService.java
-        shell: bash
-        run: |
-          cat > gesture-recorder/app/src/main/java/com/gesture/recorder/GestureAccessibilityService.java <<'EOF'
-          package com.gesture.recorder;
-
-          import android.accessibilityservice.AccessibilityService;
-          import android.accessibilityservice.GestureDescription;
-          import android.graphics.Path;
-          import android.os.Handler;
-          import android.os.Looper;
-          import android.view.accessibility.AccessibilityEvent;
-
-          public class GestureAccessibilityService extends AccessibilityService {
-
-              private static GestureAccessibilityService instance;
-
-              private static boolean recording = false;
-
-              @Override
-              protected void onServiceConnected() {
-                  super.onServiceConnected();
-                  instance = this;
-              }
-
-              @Override
-              public void onAccessibilityEvent(AccessibilityEvent event) {
-                  // Reserved for future gesture recording implementation.
-              }
-
-              @Override
-              public void onInterrupt() {
-              }
-
-              @Override
-              public void onDestroy() {
-
-                  if (instance == this) {
-                      instance = null;
-                  }
-
-                  super.onDestroy();
-              }
-
-              public static void startRecording() {
-                  recording = true;
-              }
-
-              public static void stopRecording() {
-                  recording = false;
-              }
-
-              public static void clearRecording() {
-                  recording = false;
-              }
-
-              public static void replayGesture() {
-
-                  if (instance == null) {
-                      return;
-                  }
-
-                  Path path = new Path();
-
-                  path.moveTo(500, 500);
-                  path.lineTo(500, 500);
-
-                  GestureDescription.StrokeDescription stroke =
-                          new GestureDescription.StrokeDescription(
-                                  path,
-                                  0,
-                                  100
-                          );
-
-                  GestureDescription gesture =
-                          new GestureDescription.Builder()
-                                  .addStroke(stroke)
-                                  .build();
-
-                  instance.dispatchGesture(
-                          gesture,
-                          null,
-                          new Handler(
-                                  Looper.getMainLooper()
-                          )
-                  );
-              }
-          }
-          EOF
-
-
-      # =========================================================
-      # 16. DOWNLOAD GRADLE
-      # =========================================================
-      - name: Install Gradle 8.9
-        shell: bash
-        run: |
-          set -e
-
           cd gesture-recorder
+
+          # -----------------------------------------------------
+          # settings.gradle
+          # -----------------------------------------------------
+          cat > settings.gradle <<'EOF'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "GestureRecorder"
+include(":app")
+EOF
+
+          # -----------------------------------------------------
+          # Root build.gradle
+          # -----------------------------------------------------
+          cat > build.gradle <<'EOF'
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}
+EOF
+
+          # -----------------------------------------------------
+          # gradle.properties
+          # -----------------------------------------------------
+          cat > gradle.properties <<'EOF'
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.enableJetifier=true
+EOF
+
+          # -----------------------------------------------------
+          # App build.gradle
+          # -----------------------------------------------------
+          cat > app/build.gradle <<'EOF'
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.gesture.recorder'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.gesture.recorder'
+        minSdk 26
+        targetSdk 35
+
+        versionCode 1
+        versionName '1.0'
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+}
+EOF
+
+          # -----------------------------------------------------
+          # AndroidManifest.xml
+          # -----------------------------------------------------
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <service
+            android:name=".GestureAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false">
+
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+
+        </service>
+
+    </application>
+
+</manifest>
+EOF
+
+          # -----------------------------------------------------
+          # Accessibility configuration
+          # -----------------------------------------------------
+          cat > app/src/main/res/xml/accessibility_service_config.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+
+<accessibility-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeAllMask"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="100"
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true"
+    android:description="@string/accessibility_description"
+    android:settingsActivity="com.gesture.recorder.MainActivity" />
+EOF
+
+          # -----------------------------------------------------
+          # strings.xml
+          # -----------------------------------------------------
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+<resources>
+
+    <string name="app_name">Gesture Recorder</string>
+
+    <string name="accessibility_description">
+        Gesture Recorder accessibility service for recording and replaying gestures.
+    </string>
+
+</resources>
+EOF
+
+          # -----------------------------------------------------
+          # themes/styles
+          # -----------------------------------------------------
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+<resources>
+
+    <style name="AppTheme"
+        parent="android:style/Theme.Material.Light.NoActionBar">
+
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+
+    </style>
+
+</resources>
+EOF
+
+          # -----------------------------------------------------
+          # MainActivity.java
+          # -----------------------------------------------------
+          cat > app/src/main/java/com/gesture/recorder/MainActivity.java <<'EOF'
+package com.gesture.recorder;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.view.Gravity;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class MainActivity extends Activity {
+
+    private TextView status;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(40, 40, 40, 40);
+        layout.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        TextView title = new TextView(this);
+        title.setText("Gesture Recorder");
+        title.setTextSize(28);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 30);
+
+        layout.addView(title);
+
+        status = new TextView(this);
+        status.setText(
+            "Record and replay gestures using Android Accessibility."
+        );
+        status.setTextSize(16);
+        status.setPadding(0, 0, 0, 30);
+
+        layout.addView(status);
+
+        Button accessibilityButton = new Button(this);
+        accessibilityButton.setText(
+            "Enable Accessibility Service"
+        );
+
+        accessibilityButton.setOnClickListener(v -> {
+            try {
+                Intent intent = new Intent(
+                    Settings.ACTION_ACCESSIBILITY_SETTINGS
+                );
+                startActivity(intent);
+            } catch (Exception e) {
+                Toast.makeText(
+                    this,
+                    "Unable to open Accessibility Settings",
+                    Toast.LENGTH_LONG
+                ).show();
+            }
+        });
+
+        layout.addView(accessibilityButton);
+
+        Button startButton = new Button(this);
+        startButton.setText("Start Recording");
+
+        startButton.setOnClickListener(v -> {
+            GestureAccessibilityService.startRecording();
+
+            status.setText(
+                "Recording started."
+            );
+        });
+
+        layout.addView(startButton);
+
+        Button stopButton = new Button(this);
+        stopButton.setText("Stop Recording");
+
+        stopButton.setOnClickListener(v -> {
+            GestureAccessibilityService.stopRecording();
+
+            status.setText(
+                "Recording stopped."
+            );
+        });
+
+        layout.addView(stopButton);
+
+        Button replayButton = new Button(this);
+        replayButton.setText("Replay");
+
+        replayButton.setOnClickListener(v -> {
+            GestureAccessibilityService.replayGesture();
+
+            status.setText(
+                "Replay requested."
+            );
+        });
+
+        layout.addView(replayButton);
+
+        Button clearButton = new Button(this);
+        clearButton.setText("Clear Recording");
+
+        clearButton.setOnClickListener(v -> {
+            GestureAccessibilityService.clearRecording();
+
+            status.setText(
+                "Recording cleared."
+            );
+        });
+
+        layout.addView(clearButton);
+
+        setContentView(layout);
+    }
+}
+EOF
+
+          # -----------------------------------------------------
+          # GestureAccessibilityService.java
+          # -----------------------------------------------------
+          cat > app/src/main/java/com/gesture/recorder/GestureAccessibilityService.java <<'EOF'
+package com.gesture.recorder;
+
+import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.GestureDescription;
+import android.graphics.Path;
+import android.os.Build;
+import android.view.accessibility.AccessibilityEvent;
+
+public class GestureAccessibilityService
+        extends AccessibilityService {
+
+    private static GestureAccessibilityService instance;
+
+    private static boolean recording = false;
+
+    @Override
+    protected void onServiceConnected() {
+        super.onServiceConnected();
+        instance = this;
+    }
+
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (!recording) {
+            return;
+        }
+
+        // Gesture recording engine will be expanded here.
+        // Accessibility events can be monitored while recording.
+    }
+
+    @Override
+    public void onInterrupt() {
+    }
+
+    @Override
+    public void onDestroy() {
+        instance = null;
+        super.onDestroy();
+    }
+
+    public static void startRecording() {
+        recording = true;
+    }
+
+    public static void stopRecording() {
+        recording = false;
+    }
+
+    public static void clearRecording() {
+        recording = false;
+    }
+
+    public static void replayGesture() {
+
+        if (instance == null) {
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            return;
+        }
+
+        Path path = new Path();
+
+        path.moveTo(500, 500);
+        path.lineTo(700, 500);
+
+        GestureDescription.StrokeDescription stroke =
+            new GestureDescription.StrokeDescription(
+                path,
+                0,
+                500
+            );
+
+        GestureDescription gesture =
+            new GestureDescription.Builder()
+                .addStroke(stroke)
+                .build();
+
+        instance.dispatchGesture(
+            gesture,
+            null,
+            null
+        );
+    }
+}
+EOF
+
+          # -----------------------------------------------------
+          # Download Gradle 8.9
+          # -----------------------------------------------------
+          cd ..
 
           wget -q \
             https://services.gradle.org/distributions/gradle-8.9-bin.zip
 
           unzip -q gradle-8.9-bin.zip
 
-          rm gradle-8.9-bin.zip
-
-          echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
-
-          echo "Gradle 8.9 installed."
-
-
-      # =========================================================
-      # 17. BUILD RELEASE APK
-      # =========================================================
-      - name: Build release APK
-        shell: bash
-        run: |
-          set -e
+          export PATH="$PWD/gradle-8.9/bin:$PATH"
 
           cd gesture-recorder
 
-          gradle \
-            --no-daemon \
-            --stacktrace \
-            assembleRelease
+          gradle --version
 
-          echo ""
-          echo "Release APK created:"
-
-          find app/build/outputs/apk/release \
-            -type f \
-            -print
-
-
-      # =========================================================
-      # 18. GENERATE TEMPORARY SIGNING KEY
-      # =========================================================
-      - name: Generate Android signing key
+      # ---------------------------------------------------------
+      # 5. Build release AAB and APK
+      # ---------------------------------------------------------
+      - name: Build release AAB and APK
+        working-directory: gesture-recorder
         shell: bash
         run: |
+
+          set -e
+
+          ../../gradle-8.9/bin/gradle \
+            clean \
+            bundleRelease \
+            assembleRelease \
+            --no-daemon \
+            --stacktrace
+
+      # ---------------------------------------------------------
+      # 6. Create upload signing key
+      #
+      # This key is used as the PLAY UPLOAD KEY.
+      # Google Play will handle the final app signing when
+      # Play App Signing is configured.
+      # ---------------------------------------------------------
+      - name: Create Play upload key
+        working-directory: gesture-recorder
+        shell: bash
+        run: |
+
           set -e
 
           mkdir -p signing
@@ -726,103 +505,124 @@ jobs:
           keytool \
             -genkeypair \
             -v \
-            -keystore signing/gesture-recorder.keystore \
-            -alias gesture-recorder \
+            -keystore signing/upload-keystore.jks \
+            -storetype JKS \
+            -alias gesture-recorder-upload \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -storepass "GestureRecorderBuild2026!" \
-            -keypass "GestureRecorderBuild2026!" \
-            -dname "CN=Gesture Recorder, OU=Mobile, O=Gesture Recorder, L=Brisbane, ST=QLD, C=AU"
+            -storepass GestureRecorderUpload2026! \
+            -keypass GestureRecorderUpload2026! \
+            -dname "CN=Gesture Recorder Upload, OU=Mobile, O=Gesture Recorder, L=Brisbane, ST=QLD, C=AU"
 
-          echo "Signing key generated."
-
-
-      # =========================================================
-      # 19. ZIPALIGN + SIGN APK
-      # =========================================================
-      - name: Zipalign and sign APK
+      # ---------------------------------------------------------
+      # 7. Sign AAB
+      # ---------------------------------------------------------
+      - name: Sign Android App Bundle
+        working-directory: gesture-recorder
         shell: bash
         run: |
+
+          set -e
+
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+
+          # jarsigner signs Android App Bundles
+          jarsigner \
+            -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore signing/upload-keystore.jks \
+            -storepass GestureRecorderUpload2026! \
+            -keypass GestureRecorderUpload2026! \
+            app/build/outputs/bundle/release/app-release.aab \
+            gesture-recorder-upload
+
+          # Verify AAB signature
+          jarsigner \
+            -verify \
+            -verbose \
+            app/build/outputs/bundle/release/app-release.aab
+
+      # ---------------------------------------------------------
+      # 8. Sign release APK too
+      # ---------------------------------------------------------
+      - name: Sign release APK
+        working-directory: gesture-recorder
+        shell: bash
+        run: |
+
           set -e
 
           BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
-
-          INPUT_APK="gesture-recorder/app/build/outputs/apk/release/app-release-unsigned.apk"
-
-          ALIGNED_APK="Gesture-Recorder-aligned.apk"
-
-          FINAL_APK="Gesture-Recorder.apk"
-
-          if [ ! -f "$INPUT_APK" ]; then
-            echo "ERROR: Unsigned release APK was not found."
-            find gesture-recorder/app/build -type f -print || true
-            exit 1
-          fi
-
-          echo "Zipaligning APK..."
 
           "$BUILD_TOOLS/zipalign" \
-            -p \
             -f \
+            -p \
             4 \
-            "$INPUT_APK" \
-            "$ALIGNED_APK"
-
-          echo "Signing APK..."
+            app/build/outputs/apk/release/app-release.apk \
+            app-release-aligned.apk
 
           "$BUILD_TOOLS/apksigner" sign \
-            --ks signing/gesture-recorder.keystore \
-            --ks-key-alias gesture-recorder \
-            --ks-pass pass:"GestureRecorderBuild2026!" \
-            --key-pass pass:"GestureRecorderBuild2026!" \
-            --out "$FINAL_APK" \
-            "$ALIGNED_APK"
-
-          echo "APK signed successfully."
-
-          rm -f "$ALIGNED_APK"
-
-
-      # =========================================================
-      # 20. VERIFY APK SIGNATURE
-      # =========================================================
-      - name: Verify APK signature
-        shell: bash
-        run: |
-          set -e
-
-          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
-
-          if [ ! -f "Gesture-Recorder.apk" ]; then
-            echo "ERROR: Signed APK does not exist."
-            exit 1
-          fi
-
-          echo "Verifying APK signature..."
+            --ks signing/upload-keystore.jks \
+            --ks-key-alias gesture-recorder-upload \
+            --ks-pass pass:GestureRecorderUpload2026! \
+            --key-pass pass:GestureRecorderUpload2026! \
+            --out Gesture-Recorder.apk \
+            app-release-aligned.apk
 
           "$BUILD_TOOLS/apksigner" verify \
             --verbose \
-            --print-certs \
             Gesture-Recorder.apk
 
-          echo ""
-          echo "=========================================="
-          echo "SIGNED APK VERIFIED"
-          echo "=========================================="
+      # ---------------------------------------------------------
+      # 9. Prepare artifacts
+      # ---------------------------------------------------------
+      - name: Prepare Google Play files
+        working-directory: gesture-recorder
+        shell: bash
+        run: |
 
-          ls -lh Gesture-Recorder.apk
+          set -e
 
-          file Gesture-Recorder.apk
+          mkdir -p ../play-upload
 
+          cp \
+            app/build/outputs/bundle/release/app-release.aab \
+            ../play-upload/Gesture-Recorder.aab
 
-      # =========================================================
-      # 21. UPLOAD FINAL SIGNED APK
-      # =========================================================
-      - name: Upload signed Gesture Recorder APK
+          cp \
+            Gesture-Recorder.apk \
+            ../play-upload/Gesture-Recorder.apk
+
+          echo "Google Play App Bundle:"
+          ls -lh ../play-upload/Gesture-Recorder.aab
+
+          echo "Backup APK:"
+          ls -lh ../play-upload/Gesture-Recorder.apk
+
+      # ---------------------------------------------------------
+      # 10. Upload AAB + APK artifact
+      # ---------------------------------------------------------
+      - name: Upload Google Play package
         uses: actions/upload-artifact@v4
         with:
-          name: Gesture-Recorder-APK
-          path: Gesture-Recorder.apk
+          name: Gesture-Recorder-Google-Play
+          path: play-upload/
+          if-no-files-found: error
+          retention-days: 14
+
+      # ---------------------------------------------------------
+      # 11. Upload signing key separately
+      #
+      # IMPORTANT:
+      # This is provided so the same upload key can be retained
+      # for future builds. Do NOT share it publicly.
+      # ---------------------------------------------------------
+      - name: Upload Play upload key backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gesture-Recorder-Upload-Key-PRIVATE
+          path: gesture-recorder/signing/upload-keystore.jks
           if-no-files-found: error
           retention-days: 14
