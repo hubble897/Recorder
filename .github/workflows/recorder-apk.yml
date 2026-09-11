@@ -12,14 +12,28 @@ jobs:
 
     steps:
 
+      # ==========================================================
+      # CHECKOUT
+      # ==========================================================
+
       - name: Checkout repository
         uses: actions/checkout@v4
+
+
+      # ==========================================================
+      # JAVA 17
+      # ==========================================================
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
+
+      # ==========================================================
+      # CREATE COMPLETE ANDROID PROJECT
+      # ==========================================================
 
       - name: Create Android project
         shell: bash
@@ -34,9 +48,9 @@ jobs:
           mkdir -p GestureRecorder/app/src/main/res/values
 
 
-          # ==================================================
+          # ======================================================
           # SETTINGS
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/settings.gradle <<'EOF'
           pluginManagement {
@@ -62,9 +76,9 @@ jobs:
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # ROOT BUILD
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/build.gradle <<'EOF'
           plugins {
@@ -73,9 +87,9 @@ jobs:
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # GRADLE PROPERTIES
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
@@ -84,9 +98,9 @@ jobs:
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # APP BUILD
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/app/build.gradle <<'EOF'
           plugins {
@@ -94,46 +108,32 @@ jobs:
           }
 
           android {
-
               namespace 'com.gesture.recorder'
 
               compileSdk 36
 
               defaultConfig {
-
                   applicationId 'com.gesture.recorder'
-
                   minSdk 26
-
                   targetSdk 36
-
                   versionCode 1
-
                   versionName '1.0'
               }
 
               compileOptions {
-
                   sourceCompatibility JavaVersion.VERSION_17
-
                   targetCompatibility JavaVersion.VERSION_17
               }
 
               buildTypes {
-
                   debug {
-
                       minifyEnabled false
-
                       debuggable true
                   }
 
                   release {
-
                       minifyEnabled false
-
                       shrinkResources false
-
                       debuggable false
                   }
               }
@@ -148,18 +148,16 @@ jobs:
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # STRINGS
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/app/src/main/res/values/strings.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
 
           <resources>
 
-              <string name="app_name">
-                  Gesture Recorder
-              </string>
+              <string name="app_name">Gesture Recorder</string>
 
               <string name="accessibility_description">
                   Gesture Recorder accessibility service
@@ -169,9 +167,9 @@ jobs:
           EOF
 
 
-          # ==================================================
-          # ACCESSIBILITY CONFIG
-          # ==================================================
+          # ======================================================
+          # ACCESSIBILITY SERVICE CONFIG
+          # ======================================================
 
           cat > GestureRecorder/app/src/main/res/xml/accessibility_service_config.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -191,13 +189,16 @@ jobs:
 
               android:canPerformGestures="true"
 
-              android:accessibilityFlags="flagDefault" />
+              android:canRequestTouchExplorationMode="true"
+
+              android:accessibilityFlags="flagDefault|flagRequestTouchExplorationMode" />
+
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # MANIFEST
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -206,20 +207,13 @@ jobs:
               xmlns:android="http://schemas.android.com/apk/res/android">
 
               <application
-
                   android:allowBackup="false"
-
                   android:label="@string/app_name"
-
                   android:supportsRtl="true"
-
                   android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
-
                   <activity
-
                       android:name=".MainActivity"
-
                       android:exported="true">
 
                       <intent-filter>
@@ -236,29 +230,20 @@ jobs:
 
 
                   <service
-
                       android:name=".GestureAccessibilityService"
-
-                      android:permission=
-                          "android.permission.BIND_ACCESSIBILITY_SERVICE"
-
+                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
                       android:exported="true">
 
                       <intent-filter>
 
                           <action
-                              android:name=
-                              "android.accessibilityservice.AccessibilityService" />
+                              android:name="android.accessibilityservice.AccessibilityService" />
 
                       </intent-filter>
 
                       <meta-data
-
-                          android:name=
-                          "android.accessibilityservice"
-
-                          android:resource=
-                          "@xml/accessibility_service_config" />
+                          android:name="android.accessibilityservice"
+                          android:resource="@xml/accessibility_service_config" />
 
                   </service>
 
@@ -268,9 +253,9 @@ jobs:
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # GESTURE POINT
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/app/src/main/java/com/gesture/recorder/GesturePoint.java <<'EOF'
           package com.gesture.recorder;
@@ -278,11 +263,8 @@ jobs:
           public final class GesturePoint {
 
               public final float x;
-
               public final float y;
-
               public final long time;
-
 
               public GesturePoint(
                       float x,
@@ -290,18 +272,16 @@ jobs:
                       long time) {
 
                   this.x = x;
-
                   this.y = y;
-
                   this.time = time;
               }
           }
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # GESTURE RECORDER
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/app/src/main/java/com/gesture/recorder/GestureRecorder.java <<'EOF'
           package com.gesture.recorder;
@@ -309,9 +289,7 @@ jobs:
           import android.view.MotionEvent;
 
           import java.util.ArrayList;
-
           import java.util.List;
-
 
           public final class GestureRecorder {
 
@@ -321,11 +299,9 @@ jobs:
               private static final ArrayList<GesturePoint> points =
                       new ArrayList<>();
 
-              private static boolean recording =
-                      false;
+              private static boolean recording = false;
 
-              private static long startTime =
-                      0L;
+              private static long firstEventTime = 0L;
 
 
               private GestureRecorder() {
@@ -338,8 +314,7 @@ jobs:
 
                       points.clear();
 
-                      startTime =
-                              System.currentTimeMillis();
+                      firstEventTime = 0L;
 
                       recording = true;
                   }
@@ -361,9 +336,9 @@ jobs:
 
                       points.clear();
 
-                      recording = false;
+                      firstEventTime = 0L;
 
-                      startTime = 0L;
+                      recording = false;
                   }
               }
 
@@ -384,7 +359,6 @@ jobs:
                       return;
                   }
 
-
                   synchronized (LOCK) {
 
                       if (!recording) {
@@ -392,12 +366,19 @@ jobs:
                       }
 
 
-                      long now =
-                              System.currentTimeMillis();
+                      long eventTime =
+                              event.getEventTime();
 
 
-                      long elapsed =
-                              now - startTime;
+                      if (firstEventTime == 0L) {
+
+                          firstEventTime =
+                                  eventTime;
+                      }
+
+
+                      long relativeTime =
+                              eventTime - firstEventTime;
 
 
                       int count =
@@ -410,9 +391,7 @@ jobs:
 
 
                       /*
-                       * Record the primary pointer.
-                       * This produces a reliable single-finger
-                       * replay path.
+                       * Record the primary touch pointer.
                        */
 
                       float x =
@@ -423,17 +402,18 @@ jobs:
 
 
                       points.add(
-                          new GesturePoint(
-                              x,
-                              y,
-                              elapsed
-                          )
+                              new GesturePoint(
+                                      x,
+                                      y,
+                                      relativeTime
+                              )
                       );
                   }
               }
 
 
-              public static List<GesturePoint> getPoints() {
+              public static List<GesturePoint>
+              getPoints() {
 
                   synchronized (LOCK) {
 
@@ -453,38 +433,24 @@ jobs:
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # ACCESSIBILITY SERVICE
-          #
-          # Uses Android 16's TouchInteractionController.
-          # This avoids the previous onMotionEvent compiler
-          # problem.
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/app/src/main/java/com/gesture/recorder/GestureAccessibilityService.java <<'EOF'
           package com.gesture.recorder;
 
           import android.accessibilityservice.AccessibilityService;
-
           import android.accessibilityservice.AccessibilityServiceInfo;
-
           import android.accessibilityservice.GestureDescription;
-
           import android.accessibilityservice.TouchInteractionController;
-
           import android.graphics.Path;
-
           import android.os.Build;
-
-          import android.os.Handler;
-
-          import android.os.Looper;
-
+          import android.view.Display;
           import android.view.MotionEvent;
 
-
           import java.util.List;
-
+          import java.util.concurrent.Executor;
 
           public class GestureAccessibilityService
                   extends AccessibilityService {
@@ -496,10 +462,13 @@ jobs:
               private TouchInteractionController controller;
 
 
-              private final Handler mainHandler =
-                      new Handler(
-                              Looper.getMainLooper()
-                      );
+              /*
+               * Keep the exact callback object so it can
+               * be unregistered correctly.
+               */
+
+              private TouchInteractionController.Callback
+                      touchCallback;
 
 
               public static GestureAccessibilityService
@@ -514,7 +483,6 @@ jobs:
 
                   super.onServiceConnected();
 
-
                   instance = this;
 
 
@@ -525,70 +493,86 @@ jobs:
                   if (info == null) {
 
                       info =
-                          new AccessibilityServiceInfo();
+                              new AccessibilityServiceInfo();
                   }
 
 
                   info.eventTypes = 0;
 
+
                   info.feedbackType =
                           AccessibilityServiceInfo.FEEDBACK_GENERIC;
 
+
                   info.notificationTimeout = 50;
 
+
+                  /*
+                   * TouchInteractionController requires
+                   * touch exploration mode.
+                   */
+
                   info.flags =
-                          AccessibilityServiceInfo.FLAG_DEFAULT;
+                          AccessibilityServiceInfo.FLAG_DEFAULT
+                          | AccessibilityServiceInfo
+                              .FLAG_REQUEST_TOUCH_EXPLORATION_MODE;
 
 
                   setServiceInfo(info);
 
 
                   /*
-                   * TouchInteractionController is available
-                   * from Android 13 / API 33.
+                   * TouchInteractionController was added
+                   * in Android API 33.
                    *
-                   * Android 16 therefore supports it.
+                   * Android 16 is API 36.
                    */
 
                   if (Build.VERSION.SDK_INT >= 33) {
 
                       controller =
-                          getTouchInteractionController();
+                              getTouchInteractionController(
+                                      Display.DEFAULT_DISPLAY
+                              );
 
 
-                      if (controller != null) {
+                      touchCallback =
+                              new TouchInteractionController.Callback() {
 
-                          controller.registerCallback(
-                                  mainHandler::post,
-                                  new TouchInteractionController.Callback() {
+                                  @Override
+                                  public void onMotionEvent(
+                                          MotionEvent event) {
 
-                                      @Override
-                                      public void onMotionEvent(
-                                              MotionEvent event) {
-
-                                          if (event == null) {
-                                              return;
-                                          }
-
-
-                                          GestureRecorder.add(
-                                                  event
-                                          );
+                                      if (event == null) {
+                                          return;
                                       }
 
 
-                                      @Override
-                                      public void onStateChanged(
-                                              int state) {
-
-                                          /*
-                                           * State changes are not
-                                           * required for recording.
-                                           */
-                                      }
+                                      GestureRecorder.add(
+                                              event
+                                      );
                                   }
-                          );
-                      }
+
+
+                                  @Override
+                                  public void onStateChanged(
+                                          int state) {
+
+                                      /*
+                                       * Nothing required here.
+                                       */
+                                  }
+                              };
+
+
+                      Executor executor =
+                              getMainExecutor();
+
+
+                      controller.registerCallback(
+                              executor,
+                              touchCallback
+                      );
                   }
               }
 
@@ -609,12 +593,18 @@ jobs:
                   }
 
 
-                  Path path =
-                          new Path();
-
-
                   GesturePoint first =
                           points.get(0);
+
+
+                  GesturePoint last =
+                          points.get(
+                                  points.size() - 1
+                          );
+
+
+                  Path path =
+                          new Path();
 
 
                   path.moveTo(
@@ -638,15 +628,8 @@ jobs:
                   }
 
 
-                  GesturePoint last =
-                          points.get(
-                                  points.size() - 1
-                          );
-
-
                   long duration =
-                          last.time -
-                          first.time;
+                          last.time - first.time;
 
 
                   if (duration < 100) {
@@ -654,6 +637,11 @@ jobs:
                       duration = 100;
                   }
 
+
+                  /*
+                   * dispatchGesture has a practical
+                   * duration limit for one stroke.
+                   */
 
                   if (duration > 60000) {
 
@@ -709,34 +697,33 @@ jobs:
               @Override
               public void onAccessibilityEvent(
                       android.view.accessibility.AccessibilityEvent event) {
+
+                  // Not required.
               }
 
 
               @Override
               public void onInterrupt() {
+
+                  // Not required.
               }
 
 
               @Override
               public void onDestroy() {
 
-                  if (controller != null) {
+                  if (controller != null
+                          && touchCallback != null) {
 
                       controller.unregisterCallback(
-                              new TouchInteractionController.Callback() {
-
-                                  @Override
-                                  public void onMotionEvent(
-                                          MotionEvent event) {
-                                  }
-
-                                  @Override
-                                  public void onStateChanged(
-                                          int state) {
-                                  }
-                              }
+                              touchCallback
                       );
+
+                      touchCallback = null;
                   }
+
+
+                  controller = null;
 
 
                   if (instance == this) {
@@ -751,33 +738,23 @@ jobs:
           EOF
 
 
-          # ==================================================
+          # ======================================================
           # MAIN ACTIVITY
-          # ==================================================
+          # ======================================================
 
           cat > GestureRecorder/app/src/main/java/com/gesture/recorder/MainActivity.java <<'EOF'
           package com.gesture.recorder;
 
           import android.app.Activity;
-
           import android.content.ComponentName;
-
           import android.content.Intent;
-
           import android.os.Bundle;
-
           import android.provider.Settings;
-
           import android.view.Gravity;
-
           import android.widget.Button;
-
           import android.widget.LinearLayout;
-
           import android.widget.ScrollView;
-
           import android.widget.TextView;
-
 
           public class MainActivity
                   extends Activity {
@@ -793,7 +770,6 @@ jobs:
                   super.onCreate(
                           savedInstanceState
                   );
-
 
                   buildUI();
               }
@@ -851,8 +827,11 @@ jobs:
 
                   help.setText(
                           "\nAndroid 16 Gesture Recorder\n\n"
-                          + "Enable the accessibility service, "
-                          + "then use RECORD, STOP and REPLAY.\n"
+                          + "1. Enable Accessibility.\n"
+                          + "2. Press RECORD.\n"
+                          + "3. Perform your gesture.\n"
+                          + "4. Press STOP.\n"
+                          + "5. Press REPLAY.\n"
                   );
 
 
@@ -863,8 +842,8 @@ jobs:
 
 
                   Button accessibility =
-                          button(
-                              "OPEN ACCESSIBILITY SETTINGS"
+                          makeButton(
+                                  "OPEN ACCESSIBILITY SETTINGS"
                           );
 
 
@@ -872,10 +851,10 @@ jobs:
                           v -> {
 
                               startActivity(
-                                  new Intent(
-                                      Settings
-                                          .ACTION_ACCESSIBILITY_SETTINGS
-                                  )
+                                      new Intent(
+                                              Settings
+                                                      .ACTION_ACCESSIBILITY_SETTINGS
+                                      )
                               );
                           }
                   );
@@ -885,7 +864,9 @@ jobs:
 
 
                   Button record =
-                          button("RECORD");
+                          makeButton(
+                                  "RECORD"
+                          );
 
 
                   record.setOnClickListener(
@@ -893,8 +874,8 @@ jobs:
 
                               if (!serviceEnabled()) {
 
-                                  setStatus(
-                                      "Enable the accessibility service first."
+                                  postStatus(
+                                          "Enable Gesture Recorder in Accessibility Settings first."
                                   );
 
                                   return;
@@ -904,8 +885,8 @@ jobs:
                               GestureRecorder.start();
 
 
-                              setStatus(
-                                  "Recording..."
+                              postStatus(
+                                      "Recording..."
                               );
                           }
                   );
@@ -915,7 +896,9 @@ jobs:
 
 
                   Button stop =
-                          button("STOP");
+                          makeButton(
+                                  "STOP"
+                          );
 
 
                   stop.setOnClickListener(
@@ -924,10 +907,10 @@ jobs:
                               GestureRecorder.stop();
 
 
-                              setStatus(
-                                  "Stopped. "
-                                  + GestureRecorder.size()
-                                  + " points recorded."
+                              postStatus(
+                                      "Stopped. "
+                                      + GestureRecorder.size()
+                                      + " points recorded."
                               );
                           }
                   );
@@ -937,21 +920,24 @@ jobs:
 
 
                   Button replay =
-                          button("REPLAY");
+                          makeButton(
+                                  "REPLAY"
+                          );
 
 
                   replay.setOnClickListener(
                           v -> {
 
-                              GestureAccessibilityService service =
-                                  GestureAccessibilityService
-                                      .getInstance();
+                              GestureAccessibilityService
+                                      service =
+                                      GestureAccessibilityService
+                                              .getInstance();
 
 
                               if (service == null) {
 
-                                  setStatus(
-                                      "Accessibility service is not running."
+                                  postStatus(
+                                          "Accessibility service is not running."
                                   );
 
                                   return;
@@ -961,8 +947,8 @@ jobs:
                               if (GestureRecorder.size()
                                       == 0) {
 
-                                  setStatus(
-                                      "Nothing recorded."
+                                  postStatus(
+                                          "Nothing recorded."
                                   );
 
                                   return;
@@ -972,8 +958,8 @@ jobs:
                               GestureRecorder.stop();
 
 
-                              setStatus(
-                                  "Replaying..."
+                              postStatus(
+                                      "Replaying..."
                               );
 
 
@@ -986,8 +972,8 @@ jobs:
 
 
                   Button clear =
-                          button(
-                              "CLEAR RECORDING"
+                          makeButton(
+                                  "CLEAR RECORDING"
                           );
 
 
@@ -997,8 +983,8 @@ jobs:
                               GestureRecorder.clear();
 
 
-                              setStatus(
-                                  "Recording cleared."
+                              postStatus(
+                                      "Recording cleared."
                               );
                           }
                   );
@@ -1034,17 +1020,17 @@ jobs:
               }
 
 
-              private Button button(
+              private Button makeButton(
                       String text) {
 
-                  Button b =
+                  Button button =
                           new Button(this);
 
 
-                  b.setText(text);
+                  button.setText(text);
 
 
-                  b.setTextSize(17);
+                  button.setTextSize(17);
 
 
                   LinearLayout.LayoutParams params =
@@ -1062,10 +1048,10 @@ jobs:
                   );
 
 
-                  b.setLayoutParams(params);
+                  button.setLayoutParams(params);
 
 
-                  return b;
+                  return button;
               }
 
 
@@ -1073,9 +1059,9 @@ jobs:
 
                   String enabled =
                           Settings.Secure.getString(
-                              getContentResolver(),
-                              Settings.Secure
-                                  .ENABLED_ACCESSIBILITY_SERVICES
+                                  getContentResolver(),
+                                  Settings.Secure
+                                          .ENABLED_ACCESSIBILITY_SERVICES
                           );
 
 
@@ -1087,8 +1073,8 @@ jobs:
 
                   ComponentName component =
                           new ComponentName(
-                              this,
-                              GestureAccessibilityService.class
+                                  this,
+                                  GestureAccessibilityService.class
                           );
 
 
@@ -1098,27 +1084,27 @@ jobs:
               }
 
 
-              private void setStatus(
-                      String text) {
+              private static void
+              setStatus(String message) {
 
                   if (status != null) {
 
                       status.setText(
-                              "\nStatus: " + text
+                              "\nStatus: " + message
                       );
                   }
               }
 
 
-              public static void postStatus(
-                      String text) {
+              public static void
+              postStatus(String message) {
 
                   if (status != null) {
 
                       status.post(
-                          () -> status.setText(
-                              "\nStatus: " + text
-                          )
+                              () -> status.setText(
+                                      "\nStatus: " + message
+                              )
                       );
                   }
               }
@@ -1126,9 +1112,9 @@ jobs:
           EOF
 
 
-      # ==================================================
-      # GENERATE WRAPPER
-      # ==================================================
+      # ==========================================================
+      # GENERATE GRADLE WRAPPER
+      # ==========================================================
 
       - name: Generate Gradle wrapper
         working-directory: GestureRecorder
@@ -1138,11 +1124,11 @@ jobs:
           gradle wrapper --gradle-version 8.10.2
 
 
-      # ==================================================
-      # VERIFY JAVA SOURCES
-      # ==================================================
+      # ==========================================================
+      # VERIFY SOURCES
+      # ==========================================================
 
-      - name: Verify source files
+      - name: Verify project
         working-directory: GestureRecorder
         shell: bash
         run: |
@@ -1157,28 +1143,14 @@ jobs:
 
           echo
 
-          echo "Checking required classes..."
+          echo "Gradle version:"
 
-          test -f \
-            app/src/main/java/com/gesture/recorder/MainActivity.java
-
-          test -f \
-            app/src/main/java/com/gesture/recorder/GestureRecorder.java
-
-          test -f \
-            app/src/main/java/com/gesture/recorder/GesturePoint.java
-
-          test -f \
-            app/src/main/java/com/gesture/recorder/GestureAccessibilityService.java
-
-          echo
-
-          echo "All source files found."
+          ./gradlew --version
 
 
-      # ==================================================
-      # BUILD
-      # ==================================================
+      # ==========================================================
+      # BUILD APK
+      # ==========================================================
 
       - name: Build debug APK
         working-directory: GestureRecorder
@@ -1188,14 +1160,14 @@ jobs:
           set -e
 
           ./gradlew clean \
-            :app:assembleDebug \
-            --no-daemon \
-            --stacktrace
+              :app:assembleDebug \
+              --no-daemon \
+              --stacktrace
 
 
-      # ==================================================
+      # ==========================================================
       # VERIFY APK
-      # ==================================================
+      # ==========================================================
 
       - name: Verify APK
         working-directory: GestureRecorder
@@ -1205,23 +1177,23 @@ jobs:
           set -e
 
           test -f \
-            app/build/outputs/apk/debug/app-debug.apk
+              app/build/outputs/apk/debug/app-debug.apk
 
           echo
 
-          echo "======================================"
+          echo "===================================="
 
           echo "APK BUILD SUCCESSFUL"
 
-          echo "======================================"
+          echo "===================================="
 
           ls -lh \
-            app/build/outputs/apk/debug/app-debug.apk
+              app/build/outputs/apk/debug/app-debug.apk
 
 
-      # ==================================================
-      # RENAME
-      # ==================================================
+      # ==========================================================
+      # RENAME APK
+      # ==========================================================
 
       - name: Rename APK
         working-directory: GestureRecorder
@@ -1229,15 +1201,15 @@ jobs:
         run: |
 
           cp \
-            app/build/outputs/apk/debug/app-debug.apk \
-            app/build/outputs/apk/debug/Gesture-Recorder-Android16.apk
+              app/build/outputs/apk/debug/app-debug.apk \
+              app/build/outputs/apk/debug/Gesture-Recorder-Android16.apk
 
 
-      # ==================================================
-      # UPLOAD ARTIFACT
-      # ==================================================
+      # ==========================================================
+      # UPLOAD APK
+      # ==========================================================
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Gesture-Recorder-Android16
