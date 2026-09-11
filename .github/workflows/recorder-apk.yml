@@ -1,4 +1,4 @@
-name: Build Gesture Recorder Android 16
+name: Build Gesture Recorder - Java Android 16
 
 on:
   workflow_dispatch:
@@ -12,9 +12,9 @@ jobs:
 
     steps:
 
-      # ------------------------------------------------------------
-      # 1. Create a completely fresh Android project
-      # ------------------------------------------------------------
+      # ============================================================
+      # CREATE PROJECT
+      # ============================================================
 
       - name: Create Android project
         shell: bash
@@ -51,20 +51,19 @@ jobs:
           cat > build.gradle <<'EOF'
           plugins {
               id 'com.android.application' version '8.7.3' apply false
-              id 'org.jetbrains.kotlin.android' version '2.0.21' apply false
           }
           EOF
 
           cat > gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
-          kotlin.code.style=official
           EOF
+
+          mkdir -p app
 
           cat > app/build.gradle <<'EOF'
           plugins {
               id 'com.android.application'
-              id 'org.jetbrains.kotlin.android'
           }
 
           android {
@@ -80,13 +79,13 @@ jobs:
               }
 
               buildTypes {
+                  debug {
+                      minifyEnabled false
+                  }
+
                   release {
                       minifyEnabled false
                       shrinkResources false
-                  }
-
-                  debug {
-                      minifyEnabled false
                   }
               }
 
@@ -94,69 +93,88 @@ jobs:
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
               }
-
-              kotlinOptions {
-                  jvmTarget = '17'
-              }
           }
 
           dependencies {
-              implementation 'androidx.core:core-ktx:1.15.0'
               implementation 'androidx.appcompat:appcompat:1.7.0'
+              implementation 'androidx.core:core:1.15.0'
           }
           EOF
 
-          cat > app/src/main/res/values/colors.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="black">#000000</color>
-              <color name="white">#FFFFFF</color>
-          </resources>
-          EOF
-
-          cat > app/src/main/res/values/themes.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-                  <item name="android:fontFamily">sans</item>
-                  <item name="android:windowLightStatusBar">true</item>
-                  <item name="android:navigationBarColor">@color/black</item>
-              </style>
-          </resources>
-          EOF
-
-          # --------------------------------------------------------
-          # Accessibility service configuration
-          # --------------------------------------------------------
-
-          cat > app/src/main/res/xml/accessibility_service_config.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <accessibility-service
-              xmlns:android="http://schemas.android.com/apk/res/android"
-              android:description="@string/accessibility_description"
-              android:accessibilityEventTypes="typeAllMask"
-              android:accessibilityFeedbackType="feedbackGeneric"
-              android:notificationTimeout="50"
-              android:canRetrieveWindowContent="false"
-              android:canPerformGestures="true"
-              android:settingsActivity="com.example.gesturerecorder.MainActivity" />
-          EOF
+          # ========================================================
+          # STRINGS
+          # ========================================================
 
           cat > app/src/main/res/values/strings.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
+
               <string name="app_name">Gesture Recorder</string>
-              <string name="accessibility_description">Records and replays touch gestures when explicitly enabled by the user.</string>
+
+              <string name="accessibility_description">
+                  Records touch gestures and can replay recorded gestures.
+              </string>
+
           </resources>
           EOF
 
-          # --------------------------------------------------------
-          # AndroidManifest
-          # --------------------------------------------------------
+          # ========================================================
+          # THEME
+          # ========================================================
+
+          cat > app/src/main/res/values/themes.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+
+              <style name="AppTheme"
+                  parent="Theme.AppCompat.DayNight.NoActionBar">
+
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:windowActionModeOverlay">true</item>
+                  <item name="android:navigationBarColor">#000000</item>
+
+              </style>
+
+          </resources>
+          EOF
+
+          # ========================================================
+          # ACCESSIBILITY CONFIGURATION
+          # ========================================================
+
+          cat > app/src/main/res/xml/accessibility_service_config.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+
+          <accessibility-service
+              xmlns:android="http://schemas.android.com/apk/res/android"
+
+              android:description="@string/accessibility_description"
+
+              android:accessibilityEventTypes="typeAllMask"
+
+              android:accessibilityFeedbackType="feedbackGeneric"
+
+              android:notificationTimeout="50"
+
+              android:canRetrieveWindowContent="false"
+
+              android:canPerformGestures="true"
+
+              android:canRequestTouchExplorationMode="true"
+
+              android:accessibilityFlags="flagDefault|flagSendMotionEvents" />
+
+          EOF
+
+          # ========================================================
+          # MANIFEST
+          # ========================================================
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+          <manifest
+              xmlns:android="http://schemas.android.com/apk/res/android">
 
               <application
                   android:allowBackup="false"
@@ -169,8 +187,13 @@ jobs:
                       android:exported="true">
 
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
+
+                          <action
+                              android:name="android.intent.action.MAIN" />
+
+                          <category
+                              android:name="android.intent.category.LAUNCHER" />
+
                       </intent-filter>
 
                   </activity>
@@ -182,7 +205,10 @@ jobs:
                       android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
 
                       <intent-filter>
-                          <action android:name="android.accessibilityservice.AccessibilityService" />
+
+                          <action
+                              android:name="android.accessibilityservice.AccessibilityService" />
+
                       </intent-filter>
 
                       <meta-data
@@ -196,559 +222,861 @@ jobs:
           </manifest>
           EOF
 
-          # --------------------------------------------------------
-          # MainActivity
-          # --------------------------------------------------------
+          # ========================================================
+          # GESTURE EVENT MODEL
+          # ========================================================
 
-          cat > app/src/main/java/com/example/gesturerecorder/MainActivity.kt <<'EOF'
-          package com.example.gesturerecorder
+          cat > app/src/main/java/com/example/gesturerecorder/GesturePoint.java <<'EOF'
+          package com.example.gesturerecorder;
 
-          import android.content.ComponentName
-          import android.content.Context
-          import android.content.Intent
-          import android.os.Bundle
-          import android.provider.Settings
-          import android.view.Gravity
-          import android.widget.Button
-          import android.widget.LinearLayout
-          import android.widget.TextView
-          import androidx.appcompat.app.AppCompatActivity
+          public class GesturePoint {
 
-          class MainActivity : AppCompatActivity() {
+              public final int action;
+              public final float x;
+              public final float y;
+              public final long time;
+              public final int pointerCount;
 
-              private lateinit var status: TextView
-              private lateinit var count: TextView
+              public GesturePoint(
+                      int action,
+                      float x,
+                      float y,
+                      long time,
+                      int pointerCount) {
 
-              private lateinit var recordButton: Button
-              private lateinit var stopButton: Button
-              private lateinit var replayButton: Button
-              private lateinit var clearButton: Button
-              private lateinit var settingsButton: Button
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-
-                  buildInterface()
-
-                  recordButton.setOnClickListener {
-                      if (!isAccessibilityEnabled()) {
-                          status.text = "Accessibility service is OFF"
-                          openAccessibilitySettings()
-                          return@setOnClickListener
-                      }
-
-                      GestureController.startRecording()
-
-                      status.text = "RECORDING"
-                      updateCount()
-                      updateButtons()
-                  }
-
-                  stopButton.setOnClickListener {
-                      GestureController.stopRecording()
-
-                      status.text = "Recording stopped"
-                      updateCount()
-                      updateButtons()
-                  }
-
-                  replayButton.setOnClickListener {
-                      if (!isAccessibilityEnabled()) {
-                          status.text = "Accessibility service is OFF"
-                          openAccessibilitySettings()
-                          return@setOnClickListener
-                      }
-
-                      if (GestureController.gestureCount() == 0) {
-                          status.text = "Nothing recorded"
-                          return@setOnClickListener
-                      }
-
-                      status.text = "REPLAYING..."
-
-                      GestureController.replay {
-                          runOnUiThread {
-                              status.text = "Replay finished"
-                              updateButtons()
-                          }
-                      }
-
-                      updateButtons()
-                  }
-
-                  clearButton.setOnClickListener {
-                      GestureController.clearRecording()
-
-                      status.text = "Recording cleared"
-                      updateCount()
-                      updateButtons()
-                  }
-
-                  settingsButton.setOnClickListener {
-                      openAccessibilitySettings()
-                  }
-
-                  updateCount()
-                  updateButtons()
-              }
-
-              private fun buildInterface() {
-
-                  val root = LinearLayout(this)
-
-                  root.orientation = LinearLayout.VERTICAL
-                  root.setPadding(32, 32, 32, 32)
-                  root.gravity = Gravity.CENTER_HORIZONTAL
-
-                  val title = TextView(this)
-                  title.text = "Gesture Recorder"
-                  title.textSize = 28f
-                  title.gravity = Gravity.CENTER
-                  title.setPadding(0, 0, 0, 24)
-
-                  root.addView(
-                      title,
-                      LinearLayout.LayoutParams(
-                          LinearLayout.LayoutParams.MATCH_PARENT,
-                          LinearLayout.LayoutParams.WRAP_CONTENT
-                      )
-                  )
-
-                  status = TextView(this)
-                  status.textSize = 20f
-                  status.gravity = Gravity.CENTER
-                  status.text = "READY"
-                  status.setPadding(0, 0, 0, 12)
-
-                  root.addView(
-                      status,
-                      LinearLayout.LayoutParams(
-                          LinearLayout.LayoutParams.MATCH_PARENT,
-                          LinearLayout.LayoutParams.WRAP_CONTENT
-                      )
-                  )
-
-                  count = TextView(this)
-                  count.textSize = 17f
-                  count.gravity = Gravity.CENTER
-                  count.setPadding(0, 0, 0, 24)
-
-                  root.addView(
-                      count,
-                      LinearLayout.LayoutParams(
-                          LinearLayout.LayoutParams.MATCH_PARENT,
-                          LinearLayout.LayoutParams.WRAP_CONTENT
-                      )
-                  )
-
-                  recordButton = Button(this)
-                  recordButton.text = "START RECORDING"
-                  root.addView(fullButton(recordButton))
-
-                  stopButton = Button(this)
-                  stopButton.text = "STOP RECORDING"
-                  root.addView(fullButton(stopButton))
-
-                  replayButton = Button(this)
-                  replayButton.text = "REPLAY"
-                  root.addView(fullButton(replayButton))
-
-                  clearButton = Button(this)
-                  clearButton.text = "CLEAR RECORDING"
-                  root.addView(fullButton(clearButton))
-
-                  settingsButton = Button(this)
-                  settingsButton.text = "OPEN ACCESSIBILITY SETTINGS"
-                  root.addView(fullButton(settingsButton))
-
-                  setContentView(root)
-              }
-
-              private fun fullButton(button: Button): LinearLayout.LayoutParams {
-                  return LinearLayout.LayoutParams(
-                      LinearLayout.LayoutParams.MATCH_PARENT,
-                      LinearLayout.LayoutParams.WRAP_CONTENT
-                  ).apply {
-                      setMargins(0, 8, 0, 8)
-                  }
-              }
-
-              private fun updateCount() {
-                  count.text = "Recorded gestures: ${GestureController.gestureCount()}"
-              }
-
-              private fun updateButtons() {
-                  val recording = GestureController.isRecording()
-                  val replaying = GestureController.isReplaying()
-
-                  recordButton.isEnabled = !recording && !replaying
-                  stopButton.isEnabled = recording
-                  replayButton.isEnabled =
-                      !recording &&
-                      !replaying &&
-                      GestureController.gestureCount() > 0
-                  clearButton.isEnabled =
-                      !recording &&
-                      !replaying &&
-                      GestureController.gestureCount() > 0
-              }
-
-              private fun isAccessibilityEnabled(): Boolean {
-
-                  val expected = ComponentName(
-                      this,
-                      GestureAccessibilityService::class.java
-                  )
-
-                  val enabledServices = Settings.Secure.getString(
-                      contentResolver,
-                      Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-                  ) ?: return false
-
-                  return enabledServices
-                      .split(':')
-                      .any {
-                          ComponentName.unflattenFromString(it) == expected
-                      }
-              }
-
-              private fun openAccessibilitySettings() {
-                  startActivity(
-                      Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                  )
-              }
-
-              override fun onResume() {
-                  super.onResume()
-
-                  if (::status.isInitialized) {
-                      if (isAccessibilityEnabled()) {
-                          status.text = "Accessibility service ON"
-                      } else {
-                          status.text = "Accessibility service OFF"
-                      }
-
-                      updateCount()
-                      updateButtons()
-                  }
+                  this.action = action;
+                  this.x = x;
+                  this.y = y;
+                  this.time = time;
+                  this.pointerCount = pointerCount;
               }
           }
           EOF
 
-          # --------------------------------------------------------
-          # Gesture data
-          # --------------------------------------------------------
+          # ========================================================
+          # GESTURE RECORDER
+          # ========================================================
 
-          cat > app/src/main/java/com/example/gesturerecorder/GesturePoint.kt <<'EOF'
-          package com.example.gesturerecorder
+          cat > app/src/main/java/com/example/gesturerecorder/GestureRecorder.java <<'EOF'
+          package com.example.gesturerecorder;
 
-          data class GesturePoint(
-              val action: Int,
-              val x: Float,
-              val y: Float,
-              val time: Long
-          )
-          EOF
+          import android.view.MotionEvent;
 
-          # --------------------------------------------------------
-          # Gesture controller
-          # --------------------------------------------------------
+          import java.util.ArrayList;
+          import java.util.Collections;
+          import java.util.List;
 
-          cat > app/src/main/java/com/example/gesturerecorder/GestureController.kt <<'EOF'
-          package com.example.gesturerecorder
+          public final class GestureRecorder {
 
-          object GestureController {
+              private static final List<GesturePoint> points =
+                      Collections.synchronizedList(
+                              new ArrayList<>()
+                      );
 
-              private val points = mutableListOf<GesturePoint>()
+              private static volatile boolean recording = false;
 
-              @Volatile
-              private var recording = false
-
-              @Volatile
-              private var replaying = false
-
-              @Synchronized
-              fun startRecording() {
-                  points.clear()
-                  recording = true
+              private GestureRecorder() {
               }
 
-              @Synchronized
-              fun stopRecording() {
-                  recording = false
+              public static synchronized void start() {
+
+                  points.clear();
+
+                  recording = true;
               }
 
-              @Synchronized
-              fun clearRecording() {
-                  recording = false
-                  points.clear()
+              public static synchronized void stop() {
+
+                  recording = false;
               }
 
-              fun isRecording(): Boolean {
-                  return recording
+              public static synchronized void clear() {
+
+                  recording = false;
+
+                  points.clear();
               }
 
-              fun isReplaying(): Boolean {
-                  return replaying
+              public static boolean isRecording() {
+
+                  return recording;
               }
 
-              @Synchronized
-              fun addPoint(point: GesturePoint) {
-                  if (!recording) return
-                  points.add(point)
-              }
+              public static void record(MotionEvent event) {
 
-              @Synchronized
-              fun gestureCount(): Int {
-                  return points.size
-              }
-
-              @Synchronized
-              fun getPoints(): List<GesturePoint> {
-                  return points.toList()
-              }
-
-              fun replay(onFinished: () -> Unit) {
-
-                  if (replaying) return
-
-                  val service = GestureAccessibilityService.instance
-
-                  if (service == null) {
-                      onFinished()
-                      return
+                  if (!recording) {
+                      return;
                   }
 
-                  val snapshot = getPoints()
+                  int action =
+                          event.getActionMasked();
 
-                  if (snapshot.isEmpty()) {
-                      onFinished()
-                      return
+                  if (action != MotionEvent.ACTION_DOWN
+                          && action != MotionEvent.ACTION_MOVE
+                          && action != MotionEvent.ACTION_UP) {
+
+                      return;
                   }
 
-                  replaying = true
+                  float x = event.getRawX();
+                  float y = event.getRawY();
 
-                  service.replay(snapshot) {
-                      replaying = false
-                      onFinished()
-                  }
+                  GesturePoint point =
+                          new GesturePoint(
+                                  action,
+                                  x,
+                                  y,
+                                  event.getEventTime(),
+                                  event.getPointerCount()
+                          );
+
+                  points.add(point);
+              }
+
+              public static synchronized int size() {
+
+                  return points.size();
+              }
+
+              public static synchronized List<GesturePoint> snapshot() {
+
+                  return new ArrayList<>(points);
               }
           }
           EOF
 
-          # --------------------------------------------------------
-          # Accessibility service
-          # --------------------------------------------------------
+          # ========================================================
+          # ACCESSIBILITY SERVICE
+          # ========================================================
 
-          cat > app/src/main/java/com/example/gesturerecorder/GestureAccessibilityService.kt <<'EOF'
-          package com.example.gesturerecorder
+          cat > app/src/main/java/com/example/gesturerecorder/GestureAccessibilityService.java <<'EOF'
+          package com.example.gesturerecorder;
 
-          import android.accessibilityservice.AccessibilityService
-          import android.accessibilityservice.AccessibilityServiceInfo
-          import android.accessibilityservice.GestureDescription
-          import android.graphics.Path
-          import android.os.Build
-          import android.os.Handler
-          import android.os.Looper
-          import android.view.MotionEvent
-          import android.view.InputDevice
+          import android.accessibilityservice.AccessibilityService;
+          import android.accessibilityservice.AccessibilityServiceInfo;
+          import android.accessibilityservice.GestureDescription;
+          import android.accessibilityservice.TouchInteractionController;
+          import android.graphics.Path;
+          import android.os.Build;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.view.MotionEvent;
 
-          class GestureAccessibilityService : AccessibilityService() {
+          import java.util.List;
 
-              companion object {
-                  @Volatile
-                  var instance: GestureAccessibilityService? = null
-              }
+          public class GestureAccessibilityService
+                  extends AccessibilityService {
 
-              private val handler = Handler(Looper.getMainLooper())
+              public static volatile GestureAccessibilityService instance;
 
-              override fun onServiceConnected() {
-                  super.onServiceConnected()
+              private final Handler handler =
+                      new Handler(Looper.getMainLooper());
 
-                  instance = this
+              private TouchInteractionController controller;
 
-                  val info = serviceInfo
+              @Override
+              protected void onServiceConnected() {
+
+                  super.onServiceConnected();
+
+                  instance = this;
+
+                  AccessibilityServiceInfo info =
+                          getServiceInfo();
+
+                  if (info == null) {
+                      info =
+                              new AccessibilityServiceInfo();
+                  }
 
                   info.flags =
-                      info.flags or
-                      AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+                          AccessibilityServiceInfo.FLAG_DEFAULT
+                                  | AccessibilityServiceInfo.FLAG_SEND_MOTION_EVENTS;
 
-                  if (Build.VERSION.SDK_INT >= 34) {
-                      info.setMotionEventSources(
-                          InputDevice.SOURCE_TOUCHSCREEN
-                      )
-                  }
+                  info.feedbackType =
+                          AccessibilityServiceInfo.FEEDBACK_GENERIC;
 
-                  serviceInfo = info
-              }
+                  info.eventTypes =
+                          android.view.accessibility.AccessibilityEvent.TYPE_ALL_MASK;
 
-              override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
-                  // Gesture recording uses MotionEvent rather than
-                  // accessibility UI events.
-              }
+                  if (Build.VERSION.SDK_INT >= 33) {
 
-              override fun onInterrupt() {
-                  // Required by AccessibilityService.
-              }
+                      controller =
+                              getTouchInteractionController();
 
-              override fun onDestroy() {
-                  instance = null
-                  super.onDestroy()
-              }
+                      if (controller != null) {
 
-              override fun onMotionEvent(event: MotionEvent) {
+                          controller.registerCallback(
+                                  command -> {
+                                      // Motion callbacks are registered
+                                      // through the controller below.
+                                  },
+                                  new TouchInteractionController.Callback() {
 
-                  if (!GestureController.isRecording()) {
-                      return
-                  }
+                                      @Override
+                                      public void onMotionEvent(
+                                              MotionEvent event) {
 
-                  if (event.source and InputDevice.SOURCE_TOUCHSCREEN
-                      != InputDevice.SOURCE_TOUCHSCREEN) {
-                      return
-                  }
+                                          GestureRecorder.record(event);
+                                      }
 
-                  val action = event.actionMasked
+                                      @Override
+                                      public void onStateChanged(
+                                              int state) {
 
-                  when (action) {
-
-                      MotionEvent.ACTION_DOWN,
-                      MotionEvent.ACTION_MOVE,
-                      MotionEvent.ACTION_UP -> {
-
-                          GestureController.addPoint(
-                              GesturePoint(
-                                  action = action,
-                                  x = event.rawX,
-                                  y = event.rawY,
-                                  time = event.eventTime
-                              )
-                          )
-                      }
-                  }
-              }
-
-              fun replay(
-                  points: List<GesturePoint>,
-                  finished: () -> Unit
-              ) {
-
-                  if (points.isEmpty()) {
-                      finished()
-                      return
-                  }
-
-                  val downIndex = points.indexOfFirst {
-                      it.action == MotionEvent.ACTION_DOWN
-                  }
-
-                  if (downIndex < 0) {
-                      finished()
-                      return
-                  }
-
-                  val upIndex = points.indexOfLast {
-                      it.action == MotionEvent.ACTION_UP
-                  }
-
-                  val endIndex =
-                      if (upIndex >= downIndex) upIndex
-                      else points.lastIndex
-
-                  val first = points[downIndex]
-
-                  val path = Path()
-
-                  path.moveTo(first.x, first.y)
-
-                  for (i in downIndex + 1..endIndex) {
-
-                      val p = points[i]
-
-                      when (p.action) {
-
-                          MotionEvent.ACTION_MOVE,
-                          MotionEvent.ACTION_UP -> {
-                              path.lineTo(p.x, p.y)
-                          }
+                                          // State changes are intentionally
+                                          // ignored. Recording is controlled
+                                          // by the app buttons.
+                                      }
+                                  }
+                          );
                       }
                   }
 
-                  val duration = if (endIndex > downIndex) {
-                      (
-                          points[endIndex].time -
-                          points[downIndex].time
-                      ).coerceIn(50L, 60000L)
-                  } else {
-                      100L
+                  setServiceInfo(info);
+              }
+
+              @Override
+              public void onAccessibilityEvent(
+                      android.view.accessibility.AccessibilityEvent event) {
+
+                  // UI accessibility events are not used for
+                  // gesture recording.
+              }
+
+              @Override
+              public void onInterrupt() {
+              }
+
+              @Override
+              public void onDestroy() {
+
+                  instance = null;
+
+                  super.onDestroy();
+              }
+
+              public void replay(
+                      List<GesturePoint> recorded,
+                      final Runnable finished) {
+
+                  if (recorded == null
+                          || recorded.isEmpty()) {
+
+                      if (finished != null) {
+                          finished.run();
+                      }
+
+                      return;
                   }
 
-                  val stroke =
-                      GestureDescription.StrokeDescription(
-                          path,
-                          0L,
-                          duration
-                      )
+                  GesturePoint first = null;
+                  GesturePoint last = null;
 
-                  val gesture =
-                      GestureDescription.Builder()
-                          .addStroke(stroke)
-                          .build()
+                  for (GesturePoint p : recorded) {
+
+                      if (p.action ==
+                              MotionEvent.ACTION_DOWN) {
+
+                          first = p;
+                          break;
+                      }
+                  }
+
+                  if (first == null) {
+
+                      if (finished != null) {
+                          finished.run();
+                      }
+
+                      return;
+                  }
+
+                  for (int i = recorded.size() - 1;
+                       i >= 0;
+                       i--) {
+
+                      GesturePoint p = recorded.get(i);
+
+                      if (p.action ==
+                              MotionEvent.ACTION_UP) {
+
+                          last = p;
+                          break;
+                      }
+                  }
+
+                  if (last == null) {
+                      last = recorded.get(
+                              recorded.size() - 1
+                      );
+                  }
+
+                  Path path = new Path();
+
+                  path.moveTo(
+                          first.x,
+                          first.y
+                  );
+
+                  for (GesturePoint p : recorded) {
+
+                      if (p.time < first.time) {
+                          continue;
+                      }
+
+                      if (p.action ==
+                              MotionEvent.ACTION_MOVE
+                              || p.action ==
+                              MotionEvent.ACTION_UP) {
+
+                          path.lineTo(
+                                  p.x,
+                                  p.y
+                          );
+                      }
+                  }
+
+                  long duration =
+                          last.time - first.time;
+
+                  if (duration < 50) {
+                      duration = 50;
+                  }
+
+                  if (duration > 60000) {
+                      duration = 60000;
+                  }
+
+                  GestureDescription.StrokeDescription stroke =
+                          new GestureDescription.StrokeDescription(
+                                  path,
+                                  0,
+                                  duration
+                          );
+
+                  GestureDescription gesture =
+                          new GestureDescription.Builder()
+                                  .addStroke(stroke)
+                                  .build();
 
                   dispatchGesture(
-                      gesture,
-                      object :
-                          GestureResultCallback() {
+                          gesture,
+                          new GestureResultCallback() {
 
-                          override fun onCompleted(
-                              gestureDescription: GestureDescription?
-                          ) {
-                              finished()
-                          }
+                              @Override
+                              public void onCompleted(
+                                      GestureDescription gestureDescription) {
 
-                          override fun onCancelled(
-                              gestureDescription: GestureDescription?
-                          ) {
-                              finished()
-                          }
-                      },
-                      handler
-                  )
+                                  if (finished != null) {
+                                      finished.run();
+                                  }
+                              }
+
+                              @Override
+                              public void onCancelled(
+                                      GestureDescription gestureDescription) {
+
+                                  if (finished != null) {
+                                      finished.run();
+                                  }
+                              }
+                          },
+                          handler
+                  );
               }
           }
           EOF
 
-          # --------------------------------------------------------
-          # Download Gradle wrapper
-          # --------------------------------------------------------
+          # ========================================================
+          # MAIN ACTIVITY
+          # ========================================================
 
-          chmod +x gradlew 2>/dev/null || true
+          cat > app/src/main/java/com/example/gesturerecorder/MainActivity.java <<'EOF'
+          package com.example.gesturerecorder;
 
-      # ------------------------------------------------------------
-      # 2. Install Gradle and generate wrapper
-      # ------------------------------------------------------------
+          import android.accessibilityservice.AccessibilityService;
+          import android.content.ComponentName;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.provider.Settings;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.Button;
+          import android.widget.LinearLayout;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
 
-      - name: Install Gradle
+          import androidx.appcompat.app.AppCompatActivity;
+
+          import java.util.List;
+
+          public class MainActivity
+                  extends AppCompatActivity {
+
+              private TextView status;
+              private TextView count;
+
+              private Button record;
+              private Button stop;
+              private Button replay;
+              private Button clear;
+              private Button settings;
+
+              private boolean replaying = false;
+
+              @Override
+              protected void onCreate(
+                      Bundle savedInstanceState) {
+
+                  super.onCreate(savedInstanceState);
+
+                  createInterface();
+
+                  record.setOnClickListener(
+                          v -> startRecording()
+                  );
+
+                  stop.setOnClickListener(
+                          v -> stopRecording()
+                  );
+
+                  replay.setOnClickListener(
+                          v -> startReplay()
+                  );
+
+                  clear.setOnClickListener(
+                          v -> {
+
+                              GestureRecorder.clear();
+
+                              status.setText(
+                                      "Recording cleared"
+                              );
+
+                              refresh();
+                          }
+                  );
+
+                  settings.setOnClickListener(
+                          v -> openAccessibility()
+                  );
+
+                  refresh();
+              }
+
+              private void createInterface() {
+
+                  ScrollView scroll =
+                          new ScrollView(this);
+
+                  LinearLayout root =
+                          new LinearLayout(this);
+
+                  root.setOrientation(
+                          LinearLayout.VERTICAL
+                  );
+
+                  root.setGravity(
+                          Gravity.CENTER_HORIZONTAL
+                  );
+
+                  root.setPadding(
+                          32,
+                          40,
+                          32,
+                          40
+                  );
+
+                  TextView title =
+                          new TextView(this);
+
+                  title.setText(
+                          "Gesture Recorder"
+                  );
+
+                  title.setTextSize(30);
+
+                  title.setTextColor(
+                          Color.WHITE
+                  );
+
+                  title.setGravity(
+                          Gravity.CENTER
+                  );
+
+                  root.addView(
+                          title,
+                          fullWidth()
+                  );
+
+                  status =
+                          new TextView(this);
+
+                  status.setTextSize(20);
+
+                  status.setGravity(
+                          Gravity.CENTER
+                  );
+
+                  status.setPadding(
+                          0,
+                          30,
+                          0,
+                          10
+                  );
+
+                  root.addView(
+                          status,
+                          fullWidth()
+                  );
+
+                  count =
+                          new TextView(this);
+
+                  count.setTextSize(17);
+
+                  count.setGravity(
+                          Gravity.CENTER
+                  );
+
+                  root.addView(
+                          count,
+                          fullWidth()
+                  );
+
+                  record =
+                          makeButton(
+                                  "START RECORDING"
+                          );
+
+                  root.addView(record);
+
+                  stop =
+                          makeButton(
+                                  "STOP RECORDING"
+                          );
+
+                  root.addView(stop);
+
+                  replay =
+                          makeButton(
+                                  "REPLAY"
+                          );
+
+                  root.addView(replay);
+
+                  clear =
+                          makeButton(
+                                  "CLEAR RECORDING"
+                          );
+
+                  root.addView(clear);
+
+                  settings =
+                          makeButton(
+                                  "OPEN ACCESSIBILITY SETTINGS"
+                          );
+
+                  root.addView(settings);
+
+                  TextView information =
+                          new TextView(this);
+
+                  information.setText(
+                          "\nIMPORTANT\n\n"
+                                  + "Enable Gesture Recorder in "
+                                  + "Android Accessibility settings "
+                                  + "before recording or replaying."
+                                  + "\n\n"
+                                  + "The service uses Android's "
+                                  + "Accessibility gesture API."
+                  );
+
+                  information.setTextSize(15);
+
+                  information.setPadding(
+                          0,
+                          30,
+                          0,
+                          0
+                  );
+
+                  root.addView(
+                          information,
+                          fullWidth()
+                  );
+
+                  scroll.addView(root);
+
+                  setContentView(scroll);
+              }
+
+              private Button makeButton(
+                      String text) {
+
+                  Button b =
+                          new Button(this);
+
+                  b.setText(text);
+
+                  b.setTextSize(16);
+
+                  b.setAllCaps(false);
+
+                  LinearLayout.LayoutParams lp =
+                          new LinearLayout.LayoutParams(
+                                  LinearLayout.LayoutParams.MATCH_PARENT,
+                                  LinearLayout.LayoutParams.WRAP_CONTENT
+                          );
+
+                  lp.setMargins(
+                          0,
+                          10,
+                          0,
+                          10
+                  );
+
+                  b.setLayoutParams(lp);
+
+                  return b;
+              }
+
+              private LinearLayout.LayoutParams fullWidth() {
+
+                  return new LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                  );
+              }
+
+              private void startRecording() {
+
+                  if (!isAccessibilityEnabled()) {
+
+                      status.setText(
+                              "Accessibility is OFF"
+                      );
+
+                      openAccessibility();
+
+                      return;
+                  }
+
+                  replaying = false;
+
+                  GestureRecorder.start();
+
+                  status.setText(
+                          "RECORDING"
+                  );
+
+                  refresh();
+              }
+
+              private void stopRecording() {
+
+                  GestureRecorder.stop();
+
+                  status.setText(
+                          "RECORDING STOPPED"
+                  );
+
+                  refresh();
+              }
+
+              private void startReplay() {
+
+                  if (!isAccessibilityEnabled()) {
+
+                      status.setText(
+                              "Accessibility is OFF"
+                      );
+
+                      openAccessibility();
+
+                      return;
+                  }
+
+                  List<GesturePoint> data =
+                          GestureRecorder.snapshot();
+
+                  if (data.isEmpty()) {
+
+                      status.setText(
+                              "NOTHING TO REPLAY"
+                      );
+
+                      return;
+                  }
+
+                  GestureAccessibilityService service =
+                          GestureAccessibilityService.instance;
+
+                  if (service == null) {
+
+                      status.setText(
+                              "Accessibility service unavailable"
+                      );
+
+                      return;
+                  }
+
+                  replaying = true;
+
+                  status.setText(
+                          "REPLAYING..."
+                  );
+
+                  refresh();
+
+                  service.replay(
+                          data,
+                          () -> runOnUiThread(() -> {
+
+                              replaying = false;
+
+                              status.setText(
+                                      "REPLAY FINISHED"
+                              );
+
+                              refresh();
+                          })
+                  );
+              }
+
+              private boolean isAccessibilityEnabled() {
+
+                  ComponentName expected =
+                          new ComponentName(
+                                  this,
+                                  GestureAccessibilityService.class
+                          );
+
+                  String enabled =
+                          Settings.Secure.getString(
+                                  getContentResolver(),
+                                  Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                          );
+
+                  if (enabled == null) {
+                      return false;
+                  }
+
+                  String[] services =
+                          enabled.split(":");
+
+                  for (String value : services) {
+
+                      ComponentName component =
+                              ComponentName.unflattenFromString(
+                                      value
+                              );
+
+                      if (expected.equals(component)) {
+                          return true;
+                      }
+                  }
+
+                  return false;
+              }
+
+              private void openAccessibility() {
+
+                  Intent intent =
+                          new Intent(
+                                  Settings.ACTION_ACCESSIBILITY_SETTINGS
+                          );
+
+                  startActivity(intent);
+              }
+
+              private void refresh() {
+
+                  count.setText(
+                          "Recorded events: "
+                                  + GestureRecorder.size()
+                  );
+
+                  boolean enabled =
+                          isAccessibilityEnabled();
+
+                  if (GestureRecorder.isRecording()) {
+
+                      record.setEnabled(false);
+                      stop.setEnabled(true);
+                      replay.setEnabled(false);
+                      clear.setEnabled(false);
+
+                  } else if (replaying) {
+
+                      record.setEnabled(false);
+                      stop.setEnabled(false);
+                      replay.setEnabled(false);
+                      clear.setEnabled(false);
+
+                  } else {
+
+                      record.setEnabled(enabled);
+                      stop.setEnabled(false);
+
+                      replay.setEnabled(
+                              GestureRecorder.size() > 0
+                                      && enabled
+                      );
+
+                      clear.setEnabled(
+                              GestureRecorder.size() > 0
+                      );
+                  }
+              }
+
+              @Override
+              protected void onResume() {
+
+                  super.onResume();
+
+                  if (status != null) {
+                      refresh();
+                  }
+              }
+          }
+          EOF
+
+          echo "Android Java project created."
+
+      # ============================================================
+      # INSTALL GRADLE
+      # ============================================================
+
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+
+      # ============================================================
+      # CREATE WRAPPER
+      # ============================================================
 
       - name: Generate Gradle wrapper
         working-directory: GestureRecorder
         run: |
           gradle wrapper --gradle-version 8.10.2
 
-      # ------------------------------------------------------------
-      # 3. Build APK
-      # ------------------------------------------------------------
+      # ============================================================
+      # BUILD
+      # ============================================================
 
       - name: Build debug APK
         working-directory: GestureRecorder
         run: |
           ./gradlew clean assembleDebug --stacktrace
 
-      # ------------------------------------------------------------
-      # 4. Verify APK exists
-      # ------------------------------------------------------------
+      # ============================================================
+      # VERIFY
+      # ============================================================
 
       - name: Verify APK
         run: |
@@ -757,34 +1085,36 @@ jobs:
           APK="GestureRecorder/app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
-            echo "ERROR: APK was not created."
-            find GestureRecorder/app/build -type f || true
-            exit 1
+              echo "APK was not created."
+              find GestureRecorder/app/build -type f || true
+              exit 1
           fi
 
-          echo "APK successfully created:"
+          echo "APK successfully built:"
           ls -lh "$APK"
 
-      # ------------------------------------------------------------
-      # 5. Rename APK
-      # ------------------------------------------------------------
+      # ============================================================
+      # PREPARE ARTIFACT
+      # ============================================================
 
-      - name: Prepare APK artifact
+      - name: Prepare APK
         run: |
           mkdir -p output
-          cp GestureRecorder/app/build/outputs/apk/debug/app-debug.apk \
-             output/GestureRecorder-Android16.apk
 
-          ls -lh output/GestureRecorder-Android16.apk
+          cp \
+            GestureRecorder/app/build/outputs/apk/debug/app-debug.apk \
+            output/GestureRecorder-Android16-Java.apk
 
-      # ------------------------------------------------------------
-      # 6. Upload APK to GitHub Actions
-      # ------------------------------------------------------------
+          ls -lh output/GestureRecorder-Android16-Java.apk
 
-      - name: Upload APK artifact
+      # ============================================================
+      # UPLOAD ARTIFACT
+      # ============================================================
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GestureRecorder-Android16
-          path: output/GestureRecorder-Android16.apk
+          name: GestureRecorder-Android16-Java
+          path: output/GestureRecorder-Android16-Java.apk
           if-no-files-found: error
           retention-days: 14
